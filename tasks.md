@@ -63,6 +63,22 @@ una pestaña `Usuarios` (columnas: `telefono, nombre, calendario, lista,
 trabajo, correo`), igual que ya existe `Catalogo_Listas`, para que agregar
 a alguien sea una fila nueva y no un deploy.
 
+### Decisión: Google Sheets vs. Supabase como base de datos
+**No migrar por ahora.** El cuello de botella actual no es el motor de
+datos — es `SpreadsheetApp.openById()` repetido sin cachear (ver
+"Centralizar el acceso al Sheet" arriba). Arreglar eso da más velocidad
+percibida que cambiar de motor. Migrar a Supabase implicaría reescribir
+todo el acceso a datos (`Sesiones.gs`, `NotasPendientes.gs`, `Logging.gs`,
+`Catalogo.gs`), sumar autenticación de servicio, y perder la edición manual
+del Sheet que hoy se usa para revisar/corregir filas a mano — a cambio de
+algo que con 2 usuarios reales no se nota en desempeño.
+
+**Señal de disparo para reconsiderar:** cuando `getDataRange().getValues()`
+en `Sesiones`/`Auditoria_Logs` empiece a sentirse lento por volumen real de
+filas (cientos de miles, no cientos), o cuando se necesiten queries reales
+(joins, filtros de fecha eficientes) en vez de recorrer arrays en Apps
+Script. Con el volumen actual (uso personal de 2 personas) está lejos.
+
 ### Testing mínimo
 Apps Script no tiene test runner nativo (no hay Jest fácil contra
 `SpreadsheetApp`). Dos frentes viables:
