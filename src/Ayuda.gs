@@ -6,9 +6,8 @@ function getMensajeAyuda() {
     + `  _Ejemplo: "Pendientes, Personales: comprar pan para el viernes"_\n\n`
     + `Otros comandos útiles (por texto, no audio):\n`
     + `• *"ID-00X agrega a correo@x.com"* → invita a alguien a esa cita\n`
-    + `• *"qué tengo pendiente esta semana"* → ve tus citas/tareas ya agendadas (lo que le pediste a este bot)\n`
-    + `• *"qué tengo hoy"* / *"cómo se ve mi agenda del viernes"* → ve tu calendario real de Google (todo, no solo lo agendado por aquí)\n`
-    + `• *"qué tiene Angy hoy"* → ve la agenda de otra persona registrada (agenda compartida)\n`
+    + `• *"qué tengo pendiente esta semana"* / *"qué tengo hoy"* / *"cómo se ve mi agenda del viernes"* → ve tu calendario y tareas reales de Google (citas + pendientes, incluyendo lo vencido)\n`
+    + `• *"qué tiene Angy hoy"* / *"pendientes de Angy"* → lo mismo, pero de otra persona registrada (agenda compartida)\n`
     + `• *"notas pendientes de configurar"* → ve las notas de voz que no se pudieron clasificar solas\n`
     + `• *"N-00X agenda cita [fecha/hora] en [calendario]"* / *"N-00X genera tarea..."* / *"N-00X descartar"* → resuelve una nota pendiente\n`
     + `• *"mándame lo de hoy por correo"* → te llega también a tu email, por si el WhatsApp se pierde entre notificaciones`;

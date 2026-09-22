@@ -16,26 +16,22 @@ function enviarCorreo(destinatario, asunto, cuerpoHtml) {
 }
 
 /**
- * Arma el cuerpo HTML de un correo con citas y tareas juntas (formato combinado,
- * recomendado para no multiplicar notificaciones). Reutilizable para el resumen
- * diario y para "mándame las sesiones de hoy por correo".
+ * Arma el cuerpo HTML del correo de "mándame mi agenda/pendientes por correo".
+ * Recibe las mismas listas ya formateadas (texto plano con emoji) que se mandan
+ * por WhatsApp para CONSULTAR_AGENDA/CONSULTAR_PENDIENTES (estado REAL de
+ * Calendar + Tasks), no filas de Sesiones — así el correo y el WhatsApp siempre
+ * muestran exactamente lo mismo.
  */
-function construirCuerpoCorreoPendientes(rows, desde, hasta) {
-  const citas = rows.filter(r => r.tipo === 'CITA');
-  const tareas = rows.filter(r => r.tipo === 'TAREA');
-  const filaHtml = r => {
-    const invitadosTxt = r.invitados ? ` <span style="color:#666">· invitados: ${r.invitados}</span>` : '';
-    return `<li><b>${r.id_sesion}</b> — ${r.fecha_hora} — ${r.titulo}${invitadosTxt}</li>`;
-  };
-  const seccionCitas = citas.length
-    ? `<h3>📅 Citas</h3><ul>${citas.map(filaHtml).join('')}</ul>`
+function construirCuerpoCorreoAgenda(prefijoAgenda, nombreCalendario, listaEventos, listaTareas, desde, hasta) {
+  const seccionCitas = listaEventos.length
+    ? `<h3>📅 Citas</h3><ul>${listaEventos.map(e => `<li>${e}</li>`).join('')}</ul>`
     : `<h3>📅 Citas</h3><p>Sin citas en este rango.</p>`;
-  const seccionTareas = tareas.length
-    ? `<h3>☑️ Tareas / pendientes</h3><ul>${tareas.map(filaHtml).join('')}</ul>`
+  const seccionTareas = listaTareas.length
+    ? `<h3>☑️ Tareas / pendientes</h3><ul>${listaTareas.map(t => `<li>${t}</li>`).join('')}</ul>`
     : `<h3>☑️ Tareas / pendientes</h3><p>Sin tareas en este rango.</p>`;
   const rangoTxt = desde === hasta ? desde : `${desde} a ${hasta}`;
   return `<div style="font-family:Arial,sans-serif;max-width:480px">
-    <h2>NexusVoice — Pendientes (${rangoTxt})</h2>
+    <h2>NexusVoice — ${prefijoAgenda} ("${nombreCalendario}", ${rangoTxt})</h2>
     ${seccionCitas}
     ${seccionTareas}
   </div>`;

@@ -57,6 +57,17 @@ de Héctor/Angy hoy.
       aparte. Ahora `getTareasEnRango()` (`TasksService.gs`) trae también las
       tareas no completadas con vencimiento en el mismo rango, marcadas
       "Vencida" si su fecha ya pasó.
+- [x] **Fusión `CONSULTAR_PENDIENTES` + `CONSULTAR_AGENDA` en un solo motor.**
+      "Mis pendientes" seguía leyendo SOLO el registro interno (`Sesiones`)
+      — por eso no veía tareas creadas directo en Google Tasks, ni permitía
+      preguntar por otra persona en absoluto. Ahora ambas frases ("pendientes"
+      y "agenda") ejecutan exactamente el mismo código (estado real de
+      Calendar + Tasks, con soporte de agenda compartida). Se retiró
+      `findSesionesEnRango` (quedó sin uso) y se reescribió
+      `construirCuerpoCorreoPendientes` → `construirCuerpoCorreoAgenda` en
+      `Email.gs` para trabajar con el nuevo formato. Las IDs cortas
+      (`ID-00X`) para gestionar invitados siguen funcionando igual —viven en
+      `AGREGAR_INVITADO`, que ya buscaba por fecha/título como alternativa.
 
 ## Pendiente
 

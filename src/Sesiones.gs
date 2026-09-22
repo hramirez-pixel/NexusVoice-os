@@ -111,27 +111,6 @@ function findSesionesByFecha(fechaStr, tituloHint, senderPhone) {
   return matches;
 }
 
-/** Devuelve las sesiones cuya fecha cae dentro de [desde, hasta] (inclusive).
- *  NUEVO v3.13: si se pasa senderPhone, solo las de esa persona (las sesiones viejas
- *  sin dueño registrado, de antes de v3.6, siguen visibles para todos). */
-function findSesionesEnRango(desde, hasta, senderPhone) {
-  const sheet = getOrCreateSesionesSheet();
-  const data = sheet.getDataRange().getValues();
-  const d1 = desde, d2 = hasta || desde;
-  const results = [];
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const s = rowToSesion(row, i + 1); // ya trae fecha_hora normalizada, ver rowToSesion
-    const rowFecha = s.fecha_hora.substring(0, 10);
-    const rowPhone = s.sender_phone ? s.sender_phone.toString().trim() : '';
-    if (!rowFecha) continue;
-    if (senderPhone && rowPhone && rowPhone !== senderPhone) continue;
-    if (rowFecha >= d1 && rowFecha <= d2) results.push(s);
-  }
-  results.sort((a, b) => (a.fecha_hora > b.fecha_hora ? 1 : -1));
-  return results;
-}
-
 /**
  * FIX v3.14 (causa raíz de "no lee las citas al consultar pendientes"): al guardar
  * "2026-09-24 18:00" con appendRow, Google Sheets AUTO-DETECTA que parece una fecha

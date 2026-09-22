@@ -253,43 +253,13 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
       return;
     }
 
-    if (cmd.intent === 'CONSULTAR_PENDIENTES') {
-      const hoy = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd");
-      const desde = cmd.rango_desde || hoy;
-      const hasta = cmd.rango_hasta || desde;
-      const rows = findSesionesEnRango(desde, hasta, senderPhone);
-      if (rows.length === 0) {
-        sendWhatsAppMessage(senderPhone, `No tienes citas ni tareas registradas entre ${desde} y ${hasta}.`);
-        return;
-      }
-      const lista = rows.map(r => {
-        const icono = r.tipo === 'CITA' ? '📅' : '☑️';
-        const invitadosTxt = r.invitados ? ` | invitados: ${r.invitados}` : '';
-        return `${icono} ${r.id_sesion} | ${r.fecha_hora} | ${r.titulo} | ${r.estado}${invitadosTxt}`;
-      }).join('\n');
-      sendWhatsAppMessage(senderPhone, `📋 *Pendientes (${desde} a ${hasta}):*\n\n${lista}`);
-
-      // NUEVO v3.13: si además pidió que se lo mandaran por correo ("mándame las
-      // sesiones de hoy por correo"), se envía el mismo listado también por email.
-      if (cmd.porCorreo) {
-        const usuarioCorreo = getUsuario(senderPhone);
-        if (!usuarioCorreo.correo) {
-          sendWhatsAppMessage(senderPhone, '⚠️ No tengo un correo configurado para ti todavía — pide que lo agreguen en CONFIG.USUARIOS.');
-        } else {
-          const asunto = `NexusVoice — Pendientes (${desde} a ${hasta})`;
-          const cuerpo = construirCuerpoCorreoPendientes(rows, desde, hasta);
-          const enviado = enviarCorreo(usuarioCorreo.correo, asunto, cuerpo);
-          sendWhatsAppMessage(senderPhone, enviado ? `📧 Te lo mandé también a ${usuarioCorreo.correo}.` : '⚠️ No pude mandar el correo, revisa Auditoria_Logs.');
-        }
-      }
-      return;
-    }
-
-    // NUEVO: agenda REAL — Calendar + Tasks juntos, a diferencia de CONSULTAR_PENDIENTES
-    // que solo lee el registro interno (Sesiones), y solo eventos, nunca tareas.
-    // NUEVO (agenda compartida): si se menciona una persona registrada, consulta SU
-    // calendario/lista en vez de la propia (ej. "qué tiene Angy hoy").
-    if (cmd.intent === 'CONSULTAR_AGENDA') {
+    // UNIFICADO: "pendientes" y "agenda" son la MISMA consulta — el estado REAL de
+    // Calendar + Tasks (no solo lo que este bot creó; antes CONSULTAR_PENDIENTES solo
+    // leía el registro interno en Sesiones, y por eso no veía nada creado directo en
+    // Google Tasks/Calendar). Solo cambia la palabra que dispara cada intent.
+    // Soporta agenda compartida: si se menciona una persona registrada, consulta SU
+    // calendario/lista en vez de la propia (ej. "qué tiene Angy hoy", "pendientes de Angy").
+    if (cmd.intent === 'CONSULTAR_AGENDA' || cmd.intent === 'CONSULTAR_PENDIENTES') {
       const hoyAgenda = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd");
       const desdeAgenda = cmd.rango_desde || hoyAgenda;
       const hastaAgenda = cmd.rango_hasta || desdeAgenda;
@@ -342,6 +312,20 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
       });
       const cuerpoAgenda = listaEventos.concat(listaTareas).join('\n');
       sendWhatsAppMessage(senderPhone, `🗓️ *${prefijoAgenda} ("${calAgenda.getName()}", ${desdeAgenda} a ${hastaAgenda}):*\n\n${cuerpoAgenda}`);
+
+      // Si además pidió que se lo mandaran por correo ("mándame lo de hoy por correo"),
+      // se envía SIEMPRE al correo de quien pregunta (no al de la persona consultada).
+      if (cmd.porCorreo) {
+        const usuarioSolicitante = getUsuario(senderPhone);
+        if (!usuarioSolicitante.correo) {
+          sendWhatsAppMessage(senderPhone, '⚠️ No tengo un correo configurado para ti todavía — pide que lo agreguen en CONFIG.USUARIOS.');
+        } else {
+          const asunto = `NexusVoice — ${prefijoAgenda} (${desdeAgenda} a ${hastaAgenda})`;
+          const cuerpoCorreo = construirCuerpoCorreoAgenda(prefijoAgenda, calAgenda.getName(), listaEventos, listaTareas, desdeAgenda, hastaAgenda);
+          const enviado = enviarCorreo(usuarioSolicitante.correo, asunto, cuerpoCorreo);
+          sendWhatsAppMessage(senderPhone, enviado ? `📧 Te lo mandé también a ${usuarioSolicitante.correo}.` : '⚠️ No pude mandar el correo, revisa Auditoria_Logs.');
+        }
+      }
       return;
     }
 
