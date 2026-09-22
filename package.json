@@ -1,0 +1,18 @@
+{
+  "name": "nexusvoice-os",
+  "version": "3.14.0",
+  "private": true,
+  "description": "Asistente de WhatsApp (notas de voz) que agenda citas y tareas en Google Calendar/Tasks vía Apps Script + OpenAI.",
+  "scripts": {
+    "login": "clasp login",
+    "push": "clasp push",
+    "push:watch": "clasp push --watch",
+    "pull": "clasp pull",
+    "open": "clasp open",
+    "logs": "clasp logs --watch",
+    "deploy": "clasp deploy"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}

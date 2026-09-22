@@ -1,0 +1,20 @@
+# Configuración local de clasp — CADA quien (o cada entorno dev/prod) tiene su propio
+# scriptId. Nunca se comparte ni se sube: cada dev copia .clasp.json.example -> .clasp.json
+.clasp.json
+
+# Credenciales de la CLI de clasp (login de Google) — NUNCA deben subirse
+.clasprc.json
+
+# Node
+node_modules/
+package-lock.json
+npm-debug.log
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Nunca guardes aquí claves reales — van en Script Properties (ver README)
+*.env
+secrets.json
