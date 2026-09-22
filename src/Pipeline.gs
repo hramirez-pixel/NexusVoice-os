@@ -287,17 +287,31 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
 
     // NUEVO: agenda REAL del calendario de Google (no solo lo que este bot creó),
     // a diferencia de CONSULTAR_PENDIENTES que solo lee el registro interno (Sesiones).
+    // NUEVO (agenda compartida): si "persona_agenda" viene con un nombre registrado,
+    // consulta el calendario de ESA persona en vez del propio (ej. "qué tiene Angy hoy").
     if (cmd.intent === 'CONSULTAR_AGENDA') {
       const hoyAgenda = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd");
       const desdeAgenda = cmd.rango_desde || hoyAgenda;
       const hastaAgenda = cmd.rango_hasta || desdeAgenda;
-      const usuarioAgenda = getUsuario(senderPhone);
+
+      let usuarioAgenda = getUsuario(senderPhone);
+      let prefijoAgenda = 'Tu agenda';
+      if (cmd.persona_agenda) {
+        const otroUsuario = getUsuarioPorNombre(cmd.persona_agenda);
+        if (!otroUsuario) {
+          sendWhatsAppMessage(senderPhone, `No reconozco a "${cmd.persona_agenda}". Solo puedo ver la agenda de: ${getNombresRegistrados().join(', ')}.`);
+          return;
+        }
+        usuarioAgenda = otroUsuario;
+        prefijoAgenda = `La agenda de ${otroUsuario.nombre}`;
+      }
+
       const destinoResuelto = resolverDestinoCalendario(cmd.destino_agenda, usuarioAgenda);
       const calAgenda = getCalendarPorNombre(destinoResuelto);
       const eventosAgenda = getEventosEnRango(calAgenda, desdeAgenda, hastaAgenda);
 
       if (eventosAgenda.length === 0) {
-        sendWhatsAppMessage(senderPhone, `No tienes eventos en "${calAgenda.getName()}" entre ${desdeAgenda} y ${hastaAgenda}.`);
+        sendWhatsAppMessage(senderPhone, `${prefijoAgenda} ("${calAgenda.getName()}") no tiene eventos entre ${desdeAgenda} y ${hastaAgenda}.`);
         return;
       }
       const listaAgenda = eventosAgenda.map(evt => {
@@ -306,7 +320,7 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
           : Utilities.formatDate(evt.getStartTime(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm");
         return `📅 ${inicioTxt} - ${evt.getTitle()}`;
       }).join('\n');
-      sendWhatsAppMessage(senderPhone, `🗓️ *Agenda de "${calAgenda.getName()}" (${desdeAgenda} a ${hastaAgenda}):*\n\n${listaAgenda}`);
+      sendWhatsAppMessage(senderPhone, `🗓️ *${prefijoAgenda} ("${calAgenda.getName()}", ${desdeAgenda} a ${hastaAgenda}):*\n\n${listaAgenda}`);
       return;
     }
 

@@ -24,25 +24,24 @@ de Héctor/Angy hoy.
       "cómo se ve mi agenda del viernes" y leer el calendario REAL de Google
       (`CalendarService.getEventosEnRango`), no solo lo que este bot creó —
       a diferencia de `CONSULTAR_PENDIENTES`, que sigue leyendo el registro
-      interno en `Sesiones`. Primer paso hacia "ver agendas" pedido en
-      conversación; el segundo paso (ver agendas que OTRAS personas
-      comparten) queda pendiente abajo.
+      interno en `Sesiones`.
+- [x] **Calendarios de trabajo/personal de Angy registrados** en
+      `Catalogo_Listas` (`AngyPersonal`, `AngyTrabajo`) y en
+      `CONFIG.USUARIOS` (`trabajo: "AngyTrabajo"`) — mismo patrón que ya
+      tenía Héctor desde v3.14. Listas de tareas de ambos unificadas
+      (`HectorPendientes`, `AngyPendientes`) sin importar el destino.
+- [x] **Agenda compartida: `CONSULTAR_AGENDA` con `persona_agenda`.** Permite
+      preguntar "qué tiene Angy hoy" / "agenda de Héctor mañana" —
+      `getUsuarioPorNombre()` en `Config.gs` resuelve el nombre a su perfil
+      registrado (calendario/trabajo/personal), y `Pipeline.gs` responde con
+      un mensaje de error listando los nombres válidos si no reconoce a
+      quien se menciona. Pendiente de probar en vivo: qué tan detallados
+      vienen los eventos según el nivel de permiso que cada quien le dio a
+      su calendario compartido (Google filtra esto solo — "ver
+      ocupado/libre" vs. "ver todos los detalles" — no es algo que el
+      código controle).
 
 ## Pendiente
-
-### Ver agendas que otras personas comparten
-Extensión natural de `CONSULTAR_AGENDA`: poder preguntar "qué tiene Angy
-hoy". Depende de algo que no se resuelve por código — la otra persona
-primero debe compartir su Google Calendar (permiso de lectura) con la
-cuenta de Google que corre este Apps Script. Una vez compartido:
-1. Agregar su calendario a `Catalogo_Listas` (o una pestaña nueva
-   `Calendarios_Compartidos`) con un alias (ej. "agenda de Angy").
-2. Extender `Classifier.gs` para reconocer una persona mencionada por
-   nombre como `destino_agenda` en `CONSULTAR_AGENDA`.
-3. Validar que el evento devuelto por `getEventosEnRango` no exponga
-   detalles que el dueño del calendario no quiso compartir (Google ya
-   filtra esto según el nivel de permiso otorgado — "ver solo ocupado/libre"
-   vs. "ver todos los detalles del evento" — pero vale la pena probarlo).
 
 ### Entornos dev / prod
 Hoy solo existe un proyecto de Apps Script y recibe WhatsApp real de

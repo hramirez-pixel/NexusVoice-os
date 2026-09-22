@@ -22,6 +22,7 @@ function classifyIncomingMessage(text, apiKey) {
   const now = new Date();
   const currentDateStr = Utilities.formatDate(now, CONFIG.TIMEZONE, "yyyy-MM-dd (EEEE)");
   const tablaDias = getTablaProximosDias(21); // FIX v3.10: calendario de respaldo para no calcular fechas "a mano"
+  const nombresRegistrados = getNombresRegistrados().join(', '); // NUEVO: agenda compartida — personas cuya agenda se puede consultar
 
   const prompt = `Hoy es ${currentDateStr} en la zona horaria ${CONFIG.TIMEZONE}. Un asistente de WhatsApp que agenda citas/tareas recibió este mensaje (puede venir de una nota de voz transcrita, o escrito directamente).
 
@@ -50,7 +51,7 @@ function classifyIncomingMessage(text, apiKey) {
   Clasifica "intent":
   - AGREGAR_INVITADO: agregar/añadir/invitar a alguien (correo) a una cita YA CREADA, por ID de sesión ("ID-001") o por fecha/título aproximado. Cualquier verbo con ese sentido cuenta ("agrega", "agregar", "añade", "invita", "pon a", etc.) — no exijas una palabra exacta.
   - CONSULTAR_PENDIENTES: ver LO QUE ÉL MISMO agendó A TRAVÉS DE ESTE BOT (usa la palabra "pendientes", o pide el listado con IDs para poder gestionarlo después, ej. agregar invitados). Solo ve lo que este bot creó, guardado en su registro interno.
-  - CONSULTAR_AGENDA: pregunta de forma general qué tiene agendado en su CALENDARIO REAL de Google ("qué tengo hoy", "cómo se ve mi agenda mañana", "qué tengo el viernes", "agenda de esta semana"), SIN usar la palabra "pendientes". A diferencia de CONSULTAR_PENDIENTES, esto trae TODOS los eventos reales del calendario (incluyendo los que no vinieron de este bot, ej. puestos directo en Google Calendar).
+  - CONSULTAR_AGENDA: pregunta de forma general qué tiene agendado en un CALENDARIO REAL de Google ("qué tengo hoy", "cómo se ve mi agenda mañana", "qué tengo el viernes", "agenda de esta semana"), SIN usar la palabra "pendientes". A diferencia de CONSULTAR_PENDIENTES, esto trae TODOS los eventos reales del calendario (incluyendo los que no vinieron de este bot). También cubre preguntar por la agenda de OTRA persona registrada (ej. "qué tiene Angy hoy", "cómo se ve la agenda de Héctor mañana") — personas registradas: ${nombresRegistrados}.
   - CONSULTAR_NOTAS_PENDIENTES: ver notas de voz que no se pudieron clasificar solas y siguen sin resolver. Reconócelo por el SIGNIFICADO ("notas pendientes de/por configurar/definir/resolver"), no por frase exacta.
   - RESOLVER_NOTA_PENDIENTE: decidir qué hacer con una nota pendiente (ID "N-001", o "TODAS" para todas a la vez): descartar, agendar cita, o generar tarea.
   - AYUDA: pide instrucciones o cómo usar el sistema.
@@ -62,7 +63,7 @@ function classifyIncomingMessage(text, apiKey) {
   - Resuelve TODA fecha relativa (fecha_hora_referencia, rango_desde, rango_hasta, fecha_hora_nueva) usando la MISMA tabla de calendario de arriba — no calcules offsets de días tú mismo. "Esta semana" = desde hoy hasta el domingo más cercano de la tabla.
   - Para RESOLVER_NOTA_PENDIENTE, "accion_nota" es "DESCARTAR", "AGENDAR_CITA" o "GENERAR_TAREA"; si agenda/genera, extrae "fecha_hora_nueva" y "destino_nuevo" si los da.
   - Para CONSULTAR_PENDIENTES: si el usuario pide explícitamente que se lo mandes/envíes "por correo"/"por email"/"a mi correo" (ej. "mándame las sesiones de hoy por correo"), pon "porCorreo": true. Si solo pregunta normalmente (sin pedir correo), "porCorreo": false.
-  - Para CONSULTAR_AGENDA: "destino_agenda" es el calendario que pregunta (ej. "trabajo", "personal", o un nombre explícito como "Proyecto"), igual que "destino" en modo NOTA. Si no menciona ninguno, "destino_agenda": null (su calendario por defecto).
+  - Para CONSULTAR_AGENDA: "destino_agenda" es el calendario que pregunta (ej. "trabajo", "personal", o un nombre explícito como "Proyecto"), igual que "destino" en modo NOTA. Si no menciona ninguno, "destino_agenda": null (su calendario por defecto). "persona_agenda" es el nombre de la persona registrada cuya agenda pregunta (ej. "Angy"), SOLO si es un nombre de la lista de personas registradas de arriba — NUNCA lo confundas con "destino_agenda" (un nombre de calendario/lista, no de persona). Si pregunta por su propia agenda, "persona_agenda": null.
   - No exijas coincidencia literal de palabras para NINGUNA intención — interpreta el significado natural, como lo haría un humano.
 
   Responde UNICAMENTE este JSON (deja en null/[]/false lo que no aplique según el modo):
@@ -81,6 +82,7 @@ function classifyIncomingMessage(text, apiKey) {
     "rango_desde": "YYYY-MM-DD o null",
     "rango_hasta": "YYYY-MM-DD o null",
     "destino_agenda": "texto o null",
+    "persona_agenda": "nombre o null",
     "nota_id": "N-XXX o TODAS o null",
     "accion_nota": "DESCARTAR | AGENDAR_CITA | GENERAR_TAREA o null",
     "fecha_hora_nueva": "YYYY-MM-DD HH:mm o YYYY-MM-DD o null",

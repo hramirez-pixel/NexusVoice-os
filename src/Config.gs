@@ -77,6 +77,21 @@ function getUsuario(senderPhone) {
   return CONFIG.USUARIOS[senderPhone] || CONFIG.USUARIO_DEFAULT;
 }
 
+/** NUEVO — agenda compartida: busca el perfil de un usuario REGISTRADO por su
+ *  nombre (ej. "Angy"), sin importar mayúsculas/minúsculas, para poder consultar
+ *  SU calendario (nunca el propio USUARIO_DEFAULT, que no tiene nombre). Usado por
+ *  CONSULTAR_AGENDA cuando alguien pregunta por la agenda de otra persona. */
+function getUsuarioPorNombre(nombre) {
+  if (!nombre) return null;
+  const target = nombre.toString().trim().toLowerCase();
+  return Object.values(CONFIG.USUARIOS).find(u => u.nombre && u.nombre.toLowerCase() === target) || null;
+}
+
+/** Lista de nombres registrados (para mensajes de error de agenda compartida) */
+function getNombresRegistrados() {
+  return Object.values(CONFIG.USUARIOS).map(u => u.nombre).filter(Boolean);
+}
+
 /**
  * NUEVO v3.14 — "trabajo" y "personal"/"personales" son palabras GENÉRICAS: cada
  * persona tiene su propio calendario detrás de esa palabra (Héctor → "Trabajo",
