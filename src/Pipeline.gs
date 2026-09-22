@@ -285,6 +285,31 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
       return;
     }
 
+    // NUEVO: agenda REAL del calendario de Google (no solo lo que este bot creó),
+    // a diferencia de CONSULTAR_PENDIENTES que solo lee el registro interno (Sesiones).
+    if (cmd.intent === 'CONSULTAR_AGENDA') {
+      const hoyAgenda = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd");
+      const desdeAgenda = cmd.rango_desde || hoyAgenda;
+      const hastaAgenda = cmd.rango_hasta || desdeAgenda;
+      const usuarioAgenda = getUsuario(senderPhone);
+      const destinoResuelto = resolverDestinoCalendario(cmd.destino_agenda, usuarioAgenda);
+      const calAgenda = getCalendarPorNombre(destinoResuelto);
+      const eventosAgenda = getEventosEnRango(calAgenda, desdeAgenda, hastaAgenda);
+
+      if (eventosAgenda.length === 0) {
+        sendWhatsAppMessage(senderPhone, `No tienes eventos en "${calAgenda.getName()}" entre ${desdeAgenda} y ${hastaAgenda}.`);
+        return;
+      }
+      const listaAgenda = eventosAgenda.map(evt => {
+        const inicioTxt = evt.isAllDayEvent()
+          ? Utilities.formatDate(evt.getAllDayStartDate(), CONFIG.TIMEZONE, "yyyy-MM-dd") + ' (todo el día)'
+          : Utilities.formatDate(evt.getStartTime(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm");
+        return `📅 ${inicioTxt} - ${evt.getTitle()}`;
+      }).join('\n');
+      sendWhatsAppMessage(senderPhone, `🗓️ *Agenda de "${calAgenda.getName()}" (${desdeAgenda} a ${hastaAgenda}):*\n\n${listaAgenda}`);
+      return;
+    }
+
     // NUEVO v3.7: listar notas de voz que no se pudieron clasificar solas
     if (cmd.intent === 'CONSULTAR_NOTAS_PENDIENTES') {
       const notas = findNotasPendientes(senderPhone);

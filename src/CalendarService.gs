@@ -72,4 +72,13 @@ function createCalendarEvent(title, dateTimeString, calendarId) {
   }
 }
 
+/** NUEVO — eventos REALES de un calendario (no solo lo que este bot creó) entre
+ *  dos fechas, ambas inclusive. Reutiliza parseFechaHora() para que el rango se
+ *  construya en la zona horaria del proyecto, igual que al crear eventos. */
+function getEventosEnRango(cal, desdeStr, hastaStr) {
+  const inicio = parseFechaHora(desdeStr).date;
+  const finExclusivo = new Date(parseFechaHora(hastaStr).date.getTime() + 86400000); // +1 día: cal.getEvents() excluye el límite final
+  return cal.getEvents(inicio, finExclusivo);
+}
+
 /** Google Tasks Creator */

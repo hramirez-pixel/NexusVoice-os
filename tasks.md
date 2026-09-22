@@ -17,8 +17,32 @@ de Héctor/Angy hoy.
       organizativo — Apps Script junta todo en un namespace global, no
       cambió comportamiento. Ver [architecture.md](architecture.md).
 - [x] **Repo subido a GitHub** (`hramirez-pixel/NexusVoice-os`, branch `main`).
+- [x] **`clasp` conectado al proyecto real** (`.clasp.json` + login), con fix de
+      `.claspignore` (los patrones son relativos a `rootDir: "src"`, no a la
+      raíz del repo — antes ignoraba todo el proyecto).
+- [x] **Nuevo intent `CONSULTAR_AGENDA`.** Permite preguntar "qué tengo hoy" /
+      "cómo se ve mi agenda del viernes" y leer el calendario REAL de Google
+      (`CalendarService.getEventosEnRango`), no solo lo que este bot creó —
+      a diferencia de `CONSULTAR_PENDIENTES`, que sigue leyendo el registro
+      interno en `Sesiones`. Primer paso hacia "ver agendas" pedido en
+      conversación; el segundo paso (ver agendas que OTRAS personas
+      comparten) queda pendiente abajo.
 
 ## Pendiente
+
+### Ver agendas que otras personas comparten
+Extensión natural de `CONSULTAR_AGENDA`: poder preguntar "qué tiene Angy
+hoy". Depende de algo que no se resuelve por código — la otra persona
+primero debe compartir su Google Calendar (permiso de lectura) con la
+cuenta de Google que corre este Apps Script. Una vez compartido:
+1. Agregar su calendario a `Catalogo_Listas` (o una pestaña nueva
+   `Calendarios_Compartidos`) con un alias (ej. "agenda de Angy").
+2. Extender `Classifier.gs` para reconocer una persona mencionada por
+   nombre como `destino_agenda` en `CONSULTAR_AGENDA`.
+3. Validar que el evento devuelto por `getEventosEnRango` no exponga
+   detalles que el dueño del calendario no quiso compartir (Google ya
+   filtra esto según el nivel de permiso otorgado — "ver solo ocupado/libre"
+   vs. "ver todos los detalles del evento" — pero vale la pena probarlo).
 
 ### Entornos dev / prod
 Hoy solo existe un proyecto de Apps Script y recibe WhatsApp real de
