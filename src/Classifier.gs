@@ -1,8 +1,17 @@
-function getTablaProximosDias(dias) {
+/**
+ * FIX (causa raíz de "qué tenía ayer" respondiendo "no tienes nada"): esta tabla
+ * solo generaba fechas HACIA ADELANTE (i de 0 a `diasAdelante`) — "ayer" nunca
+ * existía en ella, así que el clasificador no podía resolverlo y rango_desde/hasta
+ * quedaba en null, cayendo al fallback de "hoy" en Pipeline.gs en silencio.
+ * Ahora también incluye `diasAtras` días hacia atrás (i negativo), suficientes
+ * para "ayer", "antier" y "la semana pasada, el [día]".
+ */
+function getTablaProximosDias(diasAdelante, diasAtras) {
+  diasAtras = diasAtras || 0;
   const nombresDias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
   const ahora = new Date();
   const filas = [];
-  for (let i = 0; i <= dias; i++) {
+  for (let i = -diasAtras; i <= diasAdelante; i++) {
     const d = new Date(ahora.getTime() + i * 86400000);
     const fechaStr = Utilities.formatDate(d, CONFIG.TIMEZONE, "yyyy-MM-dd");
     // Se ancla a mediodía UTC sobre los componentes de la fecha (no al objeto "d" original)
@@ -12,6 +21,8 @@ function getTablaProximosDias(dias) {
     let etiqueta = diaSemana;
     if (i === 0) etiqueta += ' (HOY)';
     else if (i === 1) etiqueta += ' (mañana)';
+    else if (i === -1) etiqueta += ' (ayer)';
+    else if (i === -2) etiqueta += ' (antier)';
     filas.push(`${fechaStr} = ${etiqueta}`);
   }
   return filas.join(', ');
@@ -21,16 +32,16 @@ function classifyIncomingMessage(text, apiKey) {
   const url = "https://api.openai.com/v1/chat/completions";
   const now = new Date();
   const currentDateStr = Utilities.formatDate(now, CONFIG.TIMEZONE, "yyyy-MM-dd (EEEE)");
-  const tablaDias = getTablaProximosDias(21); // FIX v3.10: calendario de respaldo para no calcular fechas "a mano"
+  const tablaDias = getTablaProximosDias(21, 7); // FIX v3.10: calendario de respaldo para no calcular fechas "a mano" — +7 días atrás para poder resolver "ayer"/"antier"/"la semana pasada"
   const nombresRegistrados = getNombresRegistrados().join(', '); // NUEVO: agenda compartida — personas cuya agenda se puede consultar
 
   const prompt = `Hoy es ${currentDateStr} en la zona horaria ${CONFIG.TIMEZONE}. Un asistente de WhatsApp que agenda citas/tareas recibió este mensaje (puede venir de una nota de voz transcrita, o escrito directamente).
 
   Mensaje: "${text}"
 
-  CALENDARIO DE LOS PRÓXIMOS 21 DÍAS (úsalo para CUALQUIER fecha relativa — NUNCA calcules tú mismo cuántos días faltan para "el jueves" o "el próximo lunes"; busca el nombre del día aquí y copia su fecha exacta):
+  CALENDARIO DE LOS ÚLTIMOS 7 DÍAS Y LOS PRÓXIMOS 21 DÍAS (úsalo para CUALQUIER fecha relativa, pasada o futura — NUNCA calcules tú mismo cuántos días faltan/pasaron para "el jueves", "el próximo lunes", "ayer" o "antier"; busca el nombre del día aquí y copia su fecha exacta):
   ${tablaDias}
-  Si el usuario dice "el próximo [día]" o solo "[día]" sin más contexto, usa la fecha MÁS CERCANA de ese día en la tabla (la primera que aparezca después de hoy). Si dice "en ocho días" o "en dos semanas", cuenta esa cantidad de filas en la tabla, no de memoria.
+  Si el usuario dice "el próximo [día]" o solo "[día]" sin más contexto, usa la fecha MÁS CERCANA de ese día en la tabla (la primera que aparezca después de hoy). Si dice "en ocho días" o "en dos semanas", cuenta esa cantidad de filas en la tabla, no de memoria. Si dice "ayer" o "antier", usa esas fechas ya marcadas en la tabla. Si dice "la semana pasada, el [día]", usa la aparición de ese día ANTES de hoy en la tabla.
   IMPORTANTE: si el usuario menciona EXPLÍCITAMENTE "la próxima semana", "la semana que viene" o "la semana que entra" JUNTO con un día (ej. "la próxima semana, el miércoles"), eso NO es lo mismo que solo "el miércoles" — usa la SEGUNDA aparición de ese día en la tabla (salta la más cercana), es decir, 7 días después de la fecha más cercana de ese día.
 
   PRIMERO decide el "modo":

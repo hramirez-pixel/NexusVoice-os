@@ -40,6 +40,23 @@ de Héctor/Angy hoy.
       su calendario compartido (Google filtra esto solo — "ver
       ocupado/libre" vs. "ver todos los detalles" — no es algo que el
       código controle).
+- [x] **Fix: fechas pasadas no resolvían ("qué tenía ayer" → "no tienes
+      nada").** `getTablaProximosDias` solo generaba fechas hacia adelante;
+      "ayer"/"antier"/"la semana pasada" no existían en la tabla que ve el
+      clasificador, así que `rango_desde`/`rango_hasta` quedaban en `null` y
+      caían al fallback de "hoy" en silencio. Ahora la tabla incluye también
+      7 días hacia atrás.
+- [x] **Fix: nombre de persona confundido con destino en `CONSULTAR_AGENDA`.**
+      Red de seguridad en `Pipeline.gs` — si el clasificador pone el nombre
+      de una persona registrada en `destino_agenda` en vez de
+      `persona_agenda` (son fáciles de confundir), se detecta y se trata
+      como persona igual.
+- [x] **`CONSULTAR_AGENDA` unifica Calendar + Tasks.** Antes solo traía
+      eventos de Calendar; las tareas vencidas (ej. "2 pendientes vencidos
+      de ayer") no aparecían porque viven en Google Tasks, un servicio
+      aparte. Ahora `getTareasEnRango()` (`TasksService.gs`) trae también las
+      tareas no completadas con vencimiento en el mismo rango, marcadas
+      "Vencida" si su fecha ya pasó.
 
 ## Pendiente
 

@@ -285,10 +285,10 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
       return;
     }
 
-    // NUEVO: agenda REAL del calendario de Google (no solo lo que este bot creó),
-    // a diferencia de CONSULTAR_PENDIENTES que solo lee el registro interno (Sesiones).
-    // NUEVO (agenda compartida): si "persona_agenda" viene con un nombre registrado,
-    // consulta el calendario de ESA persona en vez del propio (ej. "qué tiene Angy hoy").
+    // NUEVO: agenda REAL — Calendar + Tasks juntos, a diferencia de CONSULTAR_PENDIENTES
+    // que solo lee el registro interno (Sesiones), y solo eventos, nunca tareas.
+    // NUEVO (agenda compartida): si se menciona una persona registrada, consulta SU
+    // calendario/lista en vez de la propia (ej. "qué tiene Angy hoy").
     if (cmd.intent === 'CONSULTAR_AGENDA') {
       const hoyAgenda = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyy-MM-dd");
       const desdeAgenda = cmd.rango_desde || hoyAgenda;
@@ -296,31 +296,52 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
 
       let usuarioAgenda = getUsuario(senderPhone);
       let prefijoAgenda = 'Tu agenda';
-      if (cmd.persona_agenda) {
-        const otroUsuario = getUsuarioPorNombre(cmd.persona_agenda);
+      let personaMencionada = cmd.persona_agenda;
+      let destinoParaResolver = cmd.destino_agenda;
+      // FIX: red de seguridad — a veces el clasificador pone el nombre de la persona
+      // en "destino_agenda" en vez de "persona_agenda" (son fáciles de confundir). Si
+      // "destino_agenda" coincide con un nombre registrado, se trata como persona, no
+      // como alias de calendario.
+      if (!personaMencionada && destinoParaResolver && getUsuarioPorNombre(destinoParaResolver)) {
+        personaMencionada = destinoParaResolver;
+        destinoParaResolver = null;
+      }
+      if (personaMencionada) {
+        const otroUsuario = getUsuarioPorNombre(personaMencionada);
         if (!otroUsuario) {
-          sendWhatsAppMessage(senderPhone, `No reconozco a "${cmd.persona_agenda}". Solo puedo ver la agenda de: ${getNombresRegistrados().join(', ')}.`);
+          sendWhatsAppMessage(senderPhone, `No reconozco a "${personaMencionada}". Solo puedo ver la agenda de: ${getNombresRegistrados().join(', ')}.`);
           return;
         }
         usuarioAgenda = otroUsuario;
         prefijoAgenda = `La agenda de ${otroUsuario.nombre}`;
       }
 
-      const destinoResuelto = resolverDestinoCalendario(cmd.destino_agenda, usuarioAgenda);
+      const destinoResuelto = resolverDestinoCalendario(destinoParaResolver, usuarioAgenda);
       const calAgenda = getCalendarPorNombre(destinoResuelto);
       const eventosAgenda = getEventosEnRango(calAgenda, desdeAgenda, hastaAgenda);
 
-      if (eventosAgenda.length === 0) {
-        sendWhatsAppMessage(senderPhone, `${prefijoAgenda} ("${calAgenda.getName()}") no tiene eventos entre ${desdeAgenda} y ${hastaAgenda}.`);
+      // NUEVO: tareas con vencimiento en el mismo rango, de la lista de Tasks de la
+      // misma persona/destino — así "qué tenía ayer" también trae pendientes vencidos.
+      const taskListIdAgenda = getTaskListIdPorNombre(destinoResuelto);
+      const tareasAgenda = getTareasEnRango(taskListIdAgenda, desdeAgenda, hastaAgenda);
+      const listaTareas = tareasAgenda.map(t => {
+        const dueStr = t.getDue() ? Utilities.formatDate(new Date(t.getDue()), CONFIG.TIMEZONE, "yyyy-MM-dd") : null;
+        const vencida = dueStr && dueStr < hoyAgenda;
+        return `☑️ ${vencida ? 'Vencida' : 'Pendiente'}: ${t.getTitle()}`;
+      });
+
+      if (eventosAgenda.length === 0 && listaTareas.length === 0) {
+        sendWhatsAppMessage(senderPhone, `${prefijoAgenda} ("${calAgenda.getName()}") no tiene nada entre ${desdeAgenda} y ${hastaAgenda}.`);
         return;
       }
-      const listaAgenda = eventosAgenda.map(evt => {
+      const listaEventos = eventosAgenda.map(evt => {
         const inicioTxt = evt.isAllDayEvent()
           ? Utilities.formatDate(evt.getAllDayStartDate(), CONFIG.TIMEZONE, "yyyy-MM-dd") + ' (todo el día)'
           : Utilities.formatDate(evt.getStartTime(), CONFIG.TIMEZONE, "yyyy-MM-dd HH:mm");
         return `📅 ${inicioTxt} - ${evt.getTitle()}`;
-      }).join('\n');
-      sendWhatsAppMessage(senderPhone, `🗓️ *${prefijoAgenda} ("${calAgenda.getName()}", ${desdeAgenda} a ${hastaAgenda}):*\n\n${listaAgenda}`);
+      });
+      const cuerpoAgenda = listaEventos.concat(listaTareas).join('\n');
+      sendWhatsAppMessage(senderPhone, `🗓️ *${prefijoAgenda} ("${calAgenda.getName()}", ${desdeAgenda} a ${hastaAgenda}):*\n\n${cuerpoAgenda}`);
       return;
     }
 

@@ -38,6 +38,25 @@ function getTaskListIdByName(listName) {
   return '@default';
 }
 
+/** NUEVO — tareas NO completadas con vencimiento dentro de un rango de fechas
+ *  (ambas inclusive). Usado por CONSULTAR_AGENDA para unificar citas + tareas,
+ *  ej. para que "qué tenía ayer" también traiga pendientes vencidos de ese día. */
+function getTareasEnRango(taskListId, desdeStr, hastaStr) {
+  try {
+    const inicio = parseFechaHora(desdeStr).date;
+    const finExclusivo = new Date(parseFechaHora(hastaStr).date.getTime() + 86400000); // +1 día: dueMax es exclusivo
+    const result = Tasks.Tasks.list(taskListId, {
+      dueMin: inicio.toISOString(),
+      dueMax: finExclusivo.toISOString(),
+      showCompleted: false
+    });
+    return result.getItems() || [];
+  } catch (e) {
+    Logger.log("Error consultando tareas en rango: " + e.toString());
+    return [];
+  }
+}
+
 // ==========================================
 // NUEVO v3.6 — SESIONES, INVITADOS Y CONSULTA DE PENDIENTES
 // ==========================================
