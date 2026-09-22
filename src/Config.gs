@@ -63,9 +63,10 @@ const CONFIG = {
   USUARIOS: {
     "5214431025894": { nombre: "Héctor", calendario: "Personales", lista: "Personales", trabajo: "Trabajo", correo: "hector.ramar@gmail.com" },
     // NUEVO v3.14: agregado "trabajo" arriba para Héctor (usa tu fila "Trabajo" que ya existe en Catalogo_Listas).
-    // Para Angy, cuando tengas su calendario de trabajo: agrega aquí trabajo: "TrabajoAngy" (o el nombre que le pongas
-    // a esa fila nueva en Catalogo_Listas). Mientras no lo tenga, decir "trabajo" le caerá a su calendario personal.
-    "5219981898579": { nombre: "Angy", calendario: "AngyPersonal", lista: "AngyPersonal", correo: "angelicaysasigonzalvez@hotmail.com" }
+    // Ajuste posterior: se agregó "trabajo": "AngyTrabajo" para Angy — requiere que la fila
+    // "AngyTrabajo" exista en Catalogo_Listas con su calendar_id (columna C). Antes de esto,
+    // decir "trabajo" le caía a su calendario personal por falta de esta fila.
+    "5219981898579": { nombre: "Angy", calendario: "AngyPersonal", lista: "AngyPersonal", trabajo: "AngyTrabajo", correo: "angelicaysasigonzalvez@hotmail.com" }
   },
   USUARIO_DEFAULT: { nombre: null, calendario: "ProyectoNexusVoice", lista: "ProyectoNexusVoice", correo: "nexus.voiceos@gmail.com" } // para números no registrados en USUARIOS
 };
