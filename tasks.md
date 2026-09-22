@@ -75,6 +75,22 @@ de Héctor/Angy hoy.
 - [x] **Recordatorio nocturno de notas pendientes ahora también por correo**
       (`sendRecordatorioNotasPendientes` en `Triggers.gs`), mismo patrón que
       el resumen diario — antes solo se mandaba por WhatsApp.
+- [x] **Fix: rangos de fecha explícitos ("todos los pendientes de
+      septiembre") no resolvían.** La tabla de fechas del clasificador solo
+      cubre ~1 mes (7 días atrás, 21 adelante); un mes completo fuera de esa
+      ventana no tenía cómo resolverse y caía al fallback de "hoy" en
+      silencio. Ahora el prompt permite que el modelo calcule directamente
+      fechas/rangos EXPLÍCITOS (mes, "del 1 al 15", etc.) sin depender de la
+      tabla — la tabla sigue siendo obligatoria solo para referencias
+      relativas por nombre de día.
+- [x] **Fix: alias de nombre para agenda compartida ("Angie" → Angy).**
+      `getUsuarioPorNombre` comparaba solo contra el nombre exacto — "Angie"
+      (variante natural de "Angy") no coincidía, y en vez de dar el mensaje
+      de "no reconozco a...", el clasificador omitía la persona en silencio
+      y consultaba la propia agenda del remitente. Ahora `CONFIG.USUARIOS`
+      soporta un campo `alias` (`["Angie", "Angélica", "Angelica"]` para
+      Angy) reconocido tanto por el código como por el prompt del
+      clasificador.
 
 ## Pendiente
 

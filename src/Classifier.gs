@@ -33,7 +33,13 @@ function classifyIncomingMessage(text, apiKey) {
   const now = new Date();
   const currentDateStr = Utilities.formatDate(now, CONFIG.TIMEZONE, "yyyy-MM-dd (EEEE)");
   const tablaDias = getTablaProximosDias(21, 7); // FIX v3.10: calendario de respaldo para no calcular fechas "a mano" — +7 días atrás para poder resolver "ayer"/"antier"/"la semana pasada"
-  const nombresRegistrados = getNombresRegistrados().join(', '); // NUEVO: agenda compartida — personas cuya agenda se puede consultar
+  // NUEVO: agenda compartida — personas cuya agenda se puede consultar, incluyendo alias
+  // (ej. "Angy" también se puede decir "Angie"/"Angélica") para que el modelo los reconozca
+  // directamente, sin depender solo de la red de seguridad en Pipeline.gs.
+  const nombresRegistrados = Object.values(CONFIG.USUARIOS)
+    .filter(u => u.nombre)
+    .map(u => (u.alias && u.alias.length) ? `${u.nombre} (también: ${u.alias.join(', ')})` : u.nombre)
+    .join('; ');
 
   const prompt = `Hoy es ${currentDateStr} en la zona horaria ${CONFIG.TIMEZONE}. Un asistente de WhatsApp que agenda citas/tareas recibió este mensaje (puede venir de una nota de voz transcrita, o escrito directamente).
 
@@ -72,7 +78,7 @@ function classifyIncomingMessage(text, apiKey) {
   Reglas del comando:
   - Un ID "ID-003" es de una sesión/cita ya creada; un ID "N-003" es de una nota pendiente. No los confundas.
   - Si pide actuar sobre TODAS las notas a la vez, "nota_id": "TODAS".
-  - Resuelve TODA fecha relativa (fecha_hora_referencia, rango_desde, rango_hasta, fecha_hora_nueva) usando la MISMA tabla de calendario de arriba — no calcules offsets de días tú mismo. "Esta semana" = desde hoy hasta el domingo más cercano de la tabla.
+  - Resuelve TODA fecha relativa POR NOMBRE DE DÍA (fecha_hora_referencia, rango_desde, rango_hasta, fecha_hora_nueva) usando la MISMA tabla de calendario de arriba — no calcules offsets de días tú mismo. "Esta semana" = desde hoy hasta el domingo más cercano de la tabla. La tabla solo cubre ~1 mes (7 días atrás, 21 adelante) — si el usuario da un MES o fecha EXPLÍCITA fuera de ese rango (ej. "todos los pendientes de septiembre", "del 1 al 15 de octubre", "todo el mes pasado"), la tabla no lo cubre: en ese caso SÍ calcula tú mismo el rango exacto (YYYY-MM-01 a YYYY-MM-último_día) usando la fecha de hoy de arriba como referencia de año — si el mes mencionado ya pasó este año y no se dijo "del año pasado", asume que se refiere al mes más próximo (puede ser este año o el próximo, el que quede más cerca de hoy).
   - Para RESOLVER_NOTA_PENDIENTE, "accion_nota" es "DESCARTAR", "AGENDAR_CITA" o "GENERAR_TAREA"; si agenda/genera, extrae "fecha_hora_nueva" y "destino_nuevo" si los da.
   - Para CONSULTAR_PENDIENTES o CONSULTAR_AGENDA: si el usuario pide explícitamente que se lo mandes/envíes "por correo"/"por email"/"a mi correo" (ej. "mándame las sesiones de hoy por correo"), pon "porCorreo": true. Si solo pregunta normalmente (sin pedir correo), "porCorreo": false. "destino_agenda" es el calendario que pregunta (ej. "trabajo", "personal", o un nombre explícito como "Proyecto"), igual que "destino" en modo NOTA. Si no menciona ninguno, "destino_agenda": null (su calendario por defecto). "persona_agenda" es el nombre de la persona registrada cuya agenda pregunta (ej. "Angy"), SOLO si es un nombre de la lista de personas registradas de arriba — NUNCA lo confundas con "destino_agenda" (un nombre de calendario/lista, no de persona). Si pregunta por su propia agenda, "persona_agenda": null.
   - No exijas coincidencia literal de palabras para NINGUNA intención — interpreta el significado natural, como lo haría un humano.

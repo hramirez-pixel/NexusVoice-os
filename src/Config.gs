@@ -67,7 +67,8 @@ const CONFIG = {
     // "AngyTrabajo" exista en Catalogo_Listas con su calendar_id (columna C). Antes de esto,
     // decir "trabajo" le caía a su calendario personal por falta de esta fila.
     // "correo" acepta varias direcciones separadas por coma — MailApp.sendEmail las manda a todas.
-    "5219981898579": { nombre: "Angy", calendario: "AngyPersonal", lista: "AngyPersonal", trabajo: "AngyTrabajo", correo: "angieysasigonzalvez@gmail.com,angelicaysasigonzalvez@hotmail.com" }
+    // "alias" son otras formas en que se le puede nombrar en voz/texto para agenda compartida (ver getUsuarioPorNombre).
+    "5219981898579": { nombre: "Angy", alias: ["Angie", "Angélica", "Angelica"], calendario: "AngyPersonal", lista: "AngyPersonal", trabajo: "AngyTrabajo", correo: "angieysasigonzalvez@gmail.com,angelicaysasigonzalvez@hotmail.com" }
   },
   USUARIO_DEFAULT: { nombre: null, calendario: "ProyectoNexusVoice", lista: "ProyectoNexusVoice", correo: "nexus.voiceos@gmail.com" } // para números no registrados en USUARIOS
 };
@@ -79,13 +80,22 @@ function getUsuario(senderPhone) {
 }
 
 /** NUEVO — agenda compartida: busca el perfil de un usuario REGISTRADO por su
- *  nombre (ej. "Angy"), sin importar mayúsculas/minúsculas, para poder consultar
- *  SU calendario (nunca el propio USUARIO_DEFAULT, que no tiene nombre). Usado por
- *  CONSULTAR_AGENDA cuando alguien pregunta por la agenda de otra persona. */
+ *  nombre O alias (ej. "Angy", "Angie", "Angélica"), sin importar mayúsculas/
+ *  minúsculas, para poder consultar SU calendario (nunca el propio
+ *  USUARIO_DEFAULT, que no tiene nombre). Usado por CONSULTAR_AGENDA/
+ *  CONSULTAR_PENDIENTES cuando alguien pregunta por la agenda de otra persona.
+ *  FIX: antes solo comparaba contra "nombre" exacto — "Angie" (variante natural
+ *  de "Angy") no coincidía, y en vez de dar el mensaje de error de "no
+ *  reconozco a...", el clasificador simplemente omitía la persona y consultaba
+ *  la propia agenda del remitente en silencio. */
 function getUsuarioPorNombre(nombre) {
   if (!nombre) return null;
   const target = nombre.toString().trim().toLowerCase();
-  return Object.values(CONFIG.USUARIOS).find(u => u.nombre && u.nombre.toLowerCase() === target) || null;
+  return Object.values(CONFIG.USUARIOS).find(u => {
+    if (u.nombre && u.nombre.toLowerCase() === target) return true;
+    if (u.alias && u.alias.some(a => a.toLowerCase() === target)) return true;
+    return false;
+  }) || null;
 }
 
 /** Lista de nombres registrados (para mensajes de error de agenda compartida) */
