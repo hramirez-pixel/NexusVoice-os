@@ -69,6 +69,13 @@ de Héctor/Angy hoy.
       (`ID-00X`) para gestionar invitados siguen funcionando igual —viven en
       `AGREGAR_INVITADO`, que ya buscaba por fecha/título como alternativa.
 
+- [x] **Angy con dos correos registrados** (gmail + hotmail, separados por
+      coma en `CONFIG.USUARIOS.correo` — `MailApp.sendEmail` manda a todos
+      los que vengan en esa lista).
+- [x] **Recordatorio nocturno de notas pendientes ahora también por correo**
+      (`sendRecordatorioNotasPendientes` en `Triggers.gs`), mismo patrón que
+      el resumen diario — antes solo se mandaba por WhatsApp.
+
 ## Pendiente
 
 ### Entornos dev / prod

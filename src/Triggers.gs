@@ -54,6 +54,7 @@ function sendDailySummary() {
 function sendRecordatorioNotasPendientes() {
   Object.keys(CONFIG.USUARIOS).forEach(telefono => {
     try {
+      const usuario = CONFIG.USUARIOS[telefono];
       const notas = findNotasPendientes(telefono);
       if (notas.length === 0) return; // nada que avisar
 
@@ -64,6 +65,13 @@ function sendRecordatorioNotasPendientes() {
       }).join('\n\n');
       const pieAyuda = `\n\n💡 _Escribe "ayuda" para ver ejemplos de cómo resolverlas (ej. "N-003 descartar")._`;
       sendWhatsAppMessage(telefono, `${resumen}\n\n${detalle}${pieAyuda}`);
+
+      // NUEVO: mismo recordatorio también por correo, como respaldo del WhatsApp —
+      // igual que el resumen diario (solo si tiene correo configurado).
+      if (usuario.correo) {
+        const cuerpo = construirCuerpoCorreoNotasPendientes(usuario.nombre, notas);
+        enviarCorreo(usuario.correo, `NexusVoice — ${notas.length} nota(s) pendiente(s) de configurar`, cuerpo);
+      }
     } catch (err) {
       Logger.log("Error generando recordatorio de notas pendientes para " + telefono + ": " + err.toString());
     }

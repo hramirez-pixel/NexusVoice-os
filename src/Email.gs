@@ -60,6 +60,21 @@ function construirCuerpoCorreoResumenDiario(nombre, fecha, citasTxt, tareasTxt) 
   </div>`;
 }
 
+/** NUEVO — respaldo por correo del recordatorio nocturno de notas pendientes de
+ *  configurar, mismo patrón que el resumen diario (solo se manda si hay algo). */
+function construirCuerpoCorreoNotasPendientes(nombre, notas) {
+  const saludo = nombre ? `${nombre}, tienes` : 'Tienes';
+  const items = notas.map((n, idx) => {
+    const fecha = formatFechaCorta(n.created_at);
+    return `<li><b>[${n.id_corto}]</b> ${fecha} — "${n.transcription}"</li>`;
+  }).join('');
+  return `<div style="font-family:Arial,sans-serif;max-width:480px">
+    <h2>🌙 ${saludo} ${notas.length} nota(s) pendiente(s) de configurar</h2>
+    <ul>${items}</ul>
+    <p style="color:#666">Resuélvelas por WhatsApp, ej. "N-003 descartar" / "N-003 agenda cita el viernes 5pm en trabajo".</p>
+  </div>`;
+}
+
 /**
  * NUEVO v3.7 — Recordatorio 1x al día (pensado para las 8pm) de las notas de voz
  * que quedaron SIN CONFIGURAR (Notas_Pendientes). Solo manda mensaje si hay algo

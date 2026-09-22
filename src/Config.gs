@@ -66,7 +66,8 @@ const CONFIG = {
     // Ajuste posterior: se agregó "trabajo": "AngyTrabajo" para Angy — requiere que la fila
     // "AngyTrabajo" exista en Catalogo_Listas con su calendar_id (columna C). Antes de esto,
     // decir "trabajo" le caía a su calendario personal por falta de esta fila.
-    "5219981898579": { nombre: "Angy", calendario: "AngyPersonal", lista: "AngyPersonal", trabajo: "AngyTrabajo", correo: "angelicaysasigonzalvez@hotmail.com" }
+    // "correo" acepta varias direcciones separadas por coma — MailApp.sendEmail las manda a todas.
+    "5219981898579": { nombre: "Angy", calendario: "AngyPersonal", lista: "AngyPersonal", trabajo: "AngyTrabajo", correo: "angieysasigonzalvez@gmail.com,angelicaysasigonzalvez@hotmail.com" }
   },
   USUARIO_DEFAULT: { nombre: null, calendario: "ProyectoNexusVoice", lista: "ProyectoNexusVoice", correo: "nexus.voiceos@gmail.com" } // para números no registrados en USUARIOS
 };
