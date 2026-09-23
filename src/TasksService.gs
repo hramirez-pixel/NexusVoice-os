@@ -45,31 +45,38 @@ function normalizarParaComparar(str) {
   return str.toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '');
 }
 
-/** NUEVO — busca una tarea NO completada por título aproximado (substring en
+/** NUEVO — busca UNA tarea NO completada por título aproximado (substring en
  *  cualquier dirección, ignorando mayúsculas/minúsculas, acentos y espacios —
  *  las tareas no tienen ID corto como las Sesiones, así que esta es la única
- *  forma de encontrarlas) y la marca como completada, dejando una nota si se
- *  dio una. Devuelve { titulo } si se completó, o { error } si no se
- *  encontró / hubo ambigüedad / falló la llamada a la API. */
+ *  forma de encontrarlas). Devuelve { tarea } o { error } si no hay 0 o más
+ *  de 1 coincidencia. Compartida por completar/eliminar/anotar tarea, para
+ *  no repetir esta búsqueda en cada una. */
+function buscarTareaAbiertaPorTitulo(taskListId, tituloBuscado) {
+  const result = Tasks.Tasks.list(taskListId, { showCompleted: false, showHidden: false });
+  const items = result.getItems() || [];
+  const target = normalizarParaComparar(tituloBuscado);
+  const matches = items.filter(t => {
+    const titulo = normalizarParaComparar(t.getTitle());
+    return titulo.includes(target) || target.includes(titulo);
+  });
+
+  if (matches.length === 0) {
+    return { error: `No encontré ninguna tarea pendiente que coincida con "${tituloBuscado}".` };
+  }
+  if (matches.length > 1) {
+    const lista = matches.map(t => `• ${t.getTitle()}`).join('\n');
+    return { error: `Encontré varias tareas que coinciden con "${tituloBuscado}", dime el título más exacto:\n\n${lista}` };
+  }
+  return { tarea: matches[0] };
+}
+
+/** Marca una tarea como completada (por título aproximado), dejando una nota
+ *  si se dio una. Devuelve { titulo } o { error }. */
 function completarTareaPorTitulo(taskListId, tituloBuscado, nota) {
   try {
-    const result = Tasks.Tasks.list(taskListId, { showCompleted: false, showHidden: false });
-    const items = result.getItems() || [];
-    const target = normalizarParaComparar(tituloBuscado);
-    const matches = items.filter(t => {
-      const titulo = normalizarParaComparar(t.getTitle());
-      return titulo.includes(target) || target.includes(titulo);
-    });
-
-    if (matches.length === 0) {
-      return { error: `No encontré ninguna tarea pendiente que coincida con "${tituloBuscado}".` };
-    }
-    if (matches.length > 1) {
-      const lista = matches.map(t => `• ${t.getTitle()}`).join('\n');
-      return { error: `Encontré varias tareas que coinciden con "${tituloBuscado}", dime el título más exacto:\n\n${lista}` };
-    }
-
-    const tarea = matches[0];
+    const encontrada = buscarTareaAbiertaPorTitulo(taskListId, tituloBuscado);
+    if (encontrada.error) return encontrada;
+    const tarea = encontrada.tarea;
     const notaExistente = tarea.getNotes();
     const notaFinal = nota ? (notaExistente ? notaExistente + '\n' + nota : nota) : notaExistente;
     const patchResource = { status: 'completed', completed: new Date().toISOString() };
@@ -79,6 +86,39 @@ function completarTareaPorTitulo(taskListId, tituloBuscado, nota) {
   } catch (e) {
     Logger.log("Error completando tarea: " + e.toString());
     return { error: 'Hubo un error marcando la tarea como completada. Intenta de nuevo o revisa Auditoria_Logs.' };
+  }
+}
+
+/** NUEVO — elimina (borra) una tarea por título aproximado, SIN pasar por
+ *  "completada" — para tareas que ya no aplican, a diferencia de
+ *  completarTareaPorTitulo (que es para tareas que SÍ se hicieron). */
+function eliminarTareaPorTitulo(taskListId, tituloBuscado) {
+  try {
+    const encontrada = buscarTareaAbiertaPorTitulo(taskListId, tituloBuscado);
+    if (encontrada.error) return encontrada;
+    Tasks.Tasks.remove(taskListId, encontrada.tarea.getId());
+    return { titulo: encontrada.tarea.getTitle() };
+  } catch (e) {
+    Logger.log("Error eliminando tarea: " + e.toString());
+    return { error: 'Hubo un error eliminando la tarea. Intenta de nuevo o revisa Auditoria_Logs.' };
+  }
+}
+
+/** NUEVO — agrega una nota a una tarea por título aproximado SIN marcarla
+ *  como completada (a diferencia de completarTareaPorTitulo) — para anotar
+ *  avances sin cerrar la tarea todavía. */
+function editarNotaTareaPorTitulo(taskListId, tituloBuscado, nota) {
+  try {
+    const encontrada = buscarTareaAbiertaPorTitulo(taskListId, tituloBuscado);
+    if (encontrada.error) return encontrada;
+    const tarea = encontrada.tarea;
+    const notaExistente = tarea.getNotes();
+    const notaFinal = notaExistente ? notaExistente + '\n' + nota : nota;
+    Tasks.Tasks.patch({ notes: notaFinal }, taskListId, tarea.getId());
+    return { titulo: tarea.getTitle() };
+  } catch (e) {
+    Logger.log("Error anotando tarea: " + e.toString());
+    return { error: 'Hubo un error agregando la nota. Intenta de nuevo o revisa Auditoria_Logs.' };
   }
 }
 

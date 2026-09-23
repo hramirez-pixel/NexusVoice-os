@@ -7,6 +7,19 @@ de Héctor/Angy hoy.
 
 ## ✅ Hecho
 
+- [x] **CRUD completo de citas y tareas por WhatsApp** (antes solo existía
+      "alta"): `CANCELAR_CITA` y `EDITAR_COMENTARIO_CITA` (Sesiones.gs:
+      `cancelarCitaEnCalendar`, `editarComentarioEvento`) para citas; y
+      `ELIMINAR_TAREA`/`EDITAR_NOTA_TAREA` (TasksService.gs:
+      `eliminarTareaPorTitulo`, `editarNotaTareaPorTitulo`, ambos reusando
+      `buscarTareaAbiertaPorTitulo`) para tareas — distinto de
+      `COMPLETAR_TAREA` (que SÍ cierra la tarea). Se extrajeron dos helpers
+      compartidos para no duplicar lógica entre los 6 comandos que operan
+      sobre una sesión/tarea existente: `resolverSesionDesdeComando()`
+      (Sesiones.gs, por ID/fecha-título/contexto reciente) y
+      `resolverUsuarioYDestino()` (Config.gs, agenda compartida). Ejemplos de
+      frase por comando en `getMensajeAyuda()` (`Ayuda.gs`) — o escribiendo
+      "ayuda" por WhatsApp.
 - [x] **CRÍTICO — `clasp push` no publicaba al webhook real de WhatsApp.**
       Todos los fixes de una sesión completa (agenda unificada, agenda
       compartida, `COMPLETAR_TAREA`, fechas pasadas/mes explícito, alias de

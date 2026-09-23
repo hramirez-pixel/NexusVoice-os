@@ -137,6 +137,43 @@ function rowToSesion(row, rowIndex) {
   };
 }
 
+/**
+ * NUEVO — busca una sesión (cita/tarea) a partir de los mismos campos que ya
+ * usaba AGREGAR_INVITADO: por ID exacto, por fecha/título aproximado, o por
+ * la última sesión creada por este remitente (ventana de contexto). Se
+ * reutiliza para cualquier comando que opere sobre una sesión existente
+ * (agregar invitado, cancelar cita, editar comentario), para no duplicar
+ * esta lógica de búsqueda en cada uno. Devuelve { sesion } o { error }.
+ */
+function resolverSesionDesdeComando(cmd, senderPhone) {
+  if (cmd.id_sesion) {
+    const sesion = findSesionById(cmd.id_sesion, senderPhone);
+    if (!sesion) return { error: `No encontré ninguna sesión con el ID "${cmd.id_sesion}".` };
+    return { sesion: sesion };
+  }
+  if (cmd.fecha_hora_referencia) {
+    const matches = findSesionesByFecha(cmd.fecha_hora_referencia, cmd.titulo_referencia, senderPhone);
+    if (matches.length === 0) {
+      return { error: `No encontré ninguna cita/tarea el ${cmd.fecha_hora_referencia}. Dame el ID si lo tienes.` };
+    }
+    if (matches.length > 1) {
+      const lista = matches.map(m => `🆔 ${m.id_sesion} - ${m.titulo} (${m.fecha_hora})`).join('\n');
+      return { error: `Encontré varias coincidencias, dime el ID exacto:\n\n${lista}` };
+    }
+    return { sesion: matches[0] };
+  }
+  // Ventana de contexto: permite referirse a "esa cita" sin ID justo después de crearla
+  const lastRaw = PropertiesService.getScriptProperties().getProperty('LAST_SESION_' + senderPhone);
+  if (lastRaw) {
+    const last = JSON.parse(lastRaw);
+    if ((Date.now() - last.ts) / 60000 <= CONFIG.INVITE_WINDOW_MINUTES) {
+      const sesion = findSesionById(last.id, senderPhone);
+      if (sesion) return { sesion: sesion };
+    }
+  }
+  return { error: 'Ya pasó el tiempo de espera de la última cita (o no hay ninguna reciente). Dame el ID de la sesión (ej. "ID-003") o la fecha/hora de la cita.' };
+}
+
 /** Agrega un invitado (correo) a la cita de una sesión — solo aplica a CITA, no a TAREA */
 function addGuestToSesion(sesion, email) {
   if (sesion.tipo !== 'CITA') {
@@ -152,6 +189,52 @@ function addGuestToSesion(sesion, email) {
   } catch (err) {
     const msg = err.toString().indexOf('Action not allowed') !== -1
       ? 'no tengo permiso para agregar invitados a este calendario.'
+      : err.toString();
+    return { ok: false, error: msg };
+  }
+}
+
+/** NUEVO — cancela (borra) el evento real de Calendar detrás de una sesión de
+ *  tipo CITA. No borra la fila de Sesiones — el estado se marca aparte con
+ *  updateSesionEstado(), para conservar el historial en vez de perderlo. */
+function cancelarCitaEnCalendar(sesion) {
+  if (sesion.tipo !== 'CITA') {
+    return { ok: false, error: 'esa sesión es una TAREA, no una cita — usa el comando de eliminar tarea.' };
+  }
+  try {
+    const cal = CalendarApp.getCalendarById(sesion.cal_o_lista_id);
+    if (!cal) return { ok: false, error: `no encontré el calendario de esa cita (${sesion.cal_o_lista_id}).` };
+    const event = cal.getEventById(sesion.event_id);
+    if (!event) return { ok: false, error: 'no encontré el evento en el calendario (¿ya se había borrado?).' };
+    event.deleteEvent();
+    return { ok: true };
+  } catch (err) {
+    const msg = err.toString().indexOf('Action not allowed') !== -1
+      ? 'no tengo permiso para borrar eventos de este calendario.'
+      : err.toString();
+    return { ok: false, error: msg };
+  }
+}
+
+/** NUEVO — agrega un comentario/nota a la DESCRIPCIÓN del evento real de
+ *  Calendar detrás de una sesión de tipo CITA (se agrega, no reemplaza lo
+ *  que ya hubiera). Solo aplica a CITA — Google Tasks maneja sus notas
+ *  aparte, ver editarNotaTareaPorTitulo() en TasksService.gs. */
+function editarComentarioEvento(sesion, comentario) {
+  if (sesion.tipo !== 'CITA') {
+    return { ok: false, error: 'esa sesión es una TAREA, no una cita — usa el comando de anotar tarea.' };
+  }
+  try {
+    const cal = CalendarApp.getCalendarById(sesion.cal_o_lista_id);
+    if (!cal) return { ok: false, error: `no encontré el calendario de esa cita (${sesion.cal_o_lista_id}).` };
+    const event = cal.getEventById(sesion.event_id);
+    if (!event) return { ok: false, error: 'no encontré el evento en el calendario (¿lo borraste?).' };
+    const actual = event.getDescription();
+    event.setDescription(actual ? actual + '\n' + comentario : comentario);
+    return { ok: true };
+  } catch (err) {
+    const msg = err.toString().indexOf('Action not allowed') !== -1
+      ? 'no tengo permiso para editar este calendario.'
       : err.toString();
     return { ok: false, error: msg };
   }

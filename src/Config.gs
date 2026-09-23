@@ -98,6 +98,35 @@ function getUsuarioPorNombre(nombre) {
   }) || null;
 }
 
+/**
+ * NUEVO — agenda compartida: dado un cmd del clasificador con destino_agenda/
+ * persona_agenda, resuelve a qué USUARIO le pertenece el calendario/lista
+ * que se va a consultar/tocar (el remitente por defecto, u otra persona
+ * registrada si la mencionó), incluyendo la red de seguridad de cuando el
+ * modelo pone el nombre de la persona en "destino_agenda" por error. Devuelve
+ * { usuario, destinoParaResolver } o { error } si mencionó a alguien no
+ * registrado. Compartido por CONSULTAR_AGENDA/CONSULTAR_PENDIENTES,
+ * COMPLETAR_TAREA, ELIMINAR_TAREA y EDITAR_NOTA_TAREA — todos pueden operar
+ * sobre "lo mío" o "lo de [persona registrada]".
+ */
+function resolverUsuarioYDestino(cmd, senderPhone) {
+  let usuario = getUsuario(senderPhone);
+  let personaMencionada = cmd.persona_agenda;
+  let destinoParaResolver = cmd.destino_agenda;
+  if (!personaMencionada && destinoParaResolver && getUsuarioPorNombre(destinoParaResolver)) {
+    personaMencionada = destinoParaResolver;
+    destinoParaResolver = null;
+  }
+  if (personaMencionada) {
+    const otroUsuario = getUsuarioPorNombre(personaMencionada);
+    if (!otroUsuario) {
+      return { error: `No reconozco a "${personaMencionada}". Personas registradas: ${getNombresRegistrados().join(', ')}.` };
+    }
+    usuario = otroUsuario;
+  }
+  return { usuario: usuario, destinoParaResolver: destinoParaResolver };
+}
+
 /** Lista de nombres registrados (para mensajes de error de agenda compartida) */
 function getNombresRegistrados() {
   return Object.values(CONFIG.USUARIOS).map(u => u.nombre).filter(Boolean);

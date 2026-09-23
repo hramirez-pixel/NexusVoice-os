@@ -210,38 +210,12 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
         return;
       }
 
-      let sesion = null;
-      if (cmd.id_sesion) {
-        sesion = findSesionById(cmd.id_sesion, senderPhone);
-        if (!sesion) {
-          sendWhatsAppMessage(senderPhone, `No encontré ninguna sesión con el ID "${cmd.id_sesion}".`);
-          return;
-        }
-      } else if (cmd.fecha_hora_referencia) {
-        const matches = findSesionesByFecha(cmd.fecha_hora_referencia, cmd.titulo_referencia, senderPhone);
-        if (matches.length === 0) {
-          sendWhatsAppMessage(senderPhone, `No encontré ninguna cita/tarea el ${cmd.fecha_hora_referencia}. Dame el ID si lo tienes.`);
-          return;
-        } else if (matches.length > 1) {
-          const lista = matches.map(m => `🆔 ${m.id_sesion} - ${m.titulo} (${m.fecha_hora})`).join('\n');
-          sendWhatsAppMessage(senderPhone, `Encontré varias coincidencias, dime el ID exacto:\n\n${lista}`);
-          return;
-        }
-        sesion = matches[0];
-      } else {
-        // Ventana de contexto: permite "agrega a fulano@x.com" sin ID justo después de la cita
-        const lastRaw = PropertiesService.getScriptProperties().getProperty('LAST_SESION_' + senderPhone);
-        if (lastRaw) {
-          const last = JSON.parse(lastRaw);
-          if ((Date.now() - last.ts) / 60000 <= CONFIG.INVITE_WINDOW_MINUTES) {
-            sesion = findSesionById(last.id, senderPhone);
-          }
-        }
-        if (!sesion) {
-          sendWhatsAppMessage(senderPhone, `Ya pasó el tiempo de espera de la última cita (o no hay ninguna reciente). Dame el ID de la sesión (ej. "ID-003") o la fecha/hora de la cita para agregar el correo.`);
-          return;
-        }
+      const resuelto = resolverSesionDesdeComando(cmd, senderPhone);
+      if (resuelto.error) {
+        sendWhatsAppMessage(senderPhone, resuelto.error);
+        return;
       }
+      const sesion = resuelto.sesion;
 
       const result = addGuestToSesion(sesion, correoNormalizado);
       if (result.ok) {
@@ -249,6 +223,45 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
         sendWhatsAppMessage(senderPhone, `✅ Agregué a ${correoNormalizado} a "${sesion.titulo}" [${sesion.id_sesion}].`);
       } else {
         sendWhatsAppMessage(senderPhone, `⚠️ No pude agregar a ${correoNormalizado} a [${sesion.id_sesion}]: ${result.error}`);
+      }
+      return;
+    }
+
+    // NUEVO: cancelar (borrar) una cita ya creada
+    if (cmd.intent === 'CANCELAR_CITA') {
+      const resuelto = resolverSesionDesdeComando(cmd, senderPhone);
+      if (resuelto.error) {
+        sendWhatsAppMessage(senderPhone, resuelto.error);
+        return;
+      }
+      const sesion = resuelto.sesion;
+      const result = cancelarCitaEnCalendar(sesion);
+      if (result.ok) {
+        updateSesionEstado(sesion.rowIndex, 'cancelada');
+        sendWhatsAppMessage(senderPhone, `🗑️ Cancelé "${sesion.titulo}" [${sesion.id_sesion}].`);
+      } else {
+        sendWhatsAppMessage(senderPhone, `⚠️ No pude cancelar [${sesion.id_sesion}]: ${result.error}`);
+      }
+      return;
+    }
+
+    // NUEVO: agregar un comentario/nota a la descripción de una cita ya creada
+    if (cmd.intent === 'EDITAR_COMENTARIO_CITA') {
+      if (!cmd.comentario_cita) {
+        sendWhatsAppMessage(senderPhone, 'Dime qué comentario agrego y a cuál cita.');
+        return;
+      }
+      const resuelto = resolverSesionDesdeComando(cmd, senderPhone);
+      if (resuelto.error) {
+        sendWhatsAppMessage(senderPhone, resuelto.error);
+        return;
+      }
+      const sesion = resuelto.sesion;
+      const result = editarComentarioEvento(sesion, cmd.comentario_cita);
+      if (result.ok) {
+        sendWhatsAppMessage(senderPhone, `📝 Agregué el comentario a "${sesion.titulo}" [${sesion.id_sesion}].`);
+      } else {
+        sendWhatsAppMessage(senderPhone, `⚠️ No pude agregar el comentario a [${sesion.id_sesion}]: ${result.error}`);
       }
       return;
     }
@@ -264,23 +277,12 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
         return;
       }
 
-      let usuarioTarea = getUsuario(senderPhone);
-      let personaMencionada = cmd.persona_agenda;
-      let destinoParaResolver = cmd.destino_agenda;
-      if (!personaMencionada && destinoParaResolver && getUsuarioPorNombre(destinoParaResolver)) {
-        personaMencionada = destinoParaResolver;
-        destinoParaResolver = null;
+      const resueltoTarea = resolverUsuarioYDestino(cmd, senderPhone);
+      if (resueltoTarea.error) {
+        sendWhatsAppMessage(senderPhone, resueltoTarea.error);
+        return;
       }
-      if (personaMencionada) {
-        const otroUsuario = getUsuarioPorNombre(personaMencionada);
-        if (!otroUsuario) {
-          sendWhatsAppMessage(senderPhone, `No reconozco a "${personaMencionada}". Solo puedo marcar tareas de: ${getNombresRegistrados().join(', ')}.`);
-          return;
-        }
-        usuarioTarea = otroUsuario;
-      }
-
-      const destinoResueltoTarea = resolverDestinoCalendario(destinoParaResolver, usuarioTarea);
+      const destinoResueltoTarea = resolverDestinoCalendario(resueltoTarea.destinoParaResolver, resueltoTarea.usuario);
       const taskListIdTarea = getTaskListIdPorNombre(destinoResueltoTarea);
       const resultados = titulosTarea.map(titulo => completarTareaPorTitulo(taskListIdTarea, titulo, cmd.nota_tarea));
 
@@ -291,6 +293,60 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
       if (fallidas.length) partes.push(fallidas.map(r => `⚠️ ${r.error}`).join('\n\n'));
       if (cmd.nota_tarea && exitosas.length) partes.push(`📝 Nota aplicada: ${cmd.nota_tarea}`);
       sendWhatsAppMessage(senderPhone, partes.join('\n\n'));
+      return;
+    }
+
+    // NUEVO: eliminar (borrar) una o varias tareas por completo, SIN pasar por
+    // "completada" — para tareas que ya no aplican, no las que sí se hicieron.
+    if (cmd.intent === 'ELIMINAR_TAREA') {
+      const titulosEliminar = Array.isArray(cmd.titulos_tarea) ? cmd.titulos_tarea.filter(Boolean) : [];
+      if (titulosEliminar.length === 0) {
+        sendWhatsAppMessage(senderPhone, 'Dime qué tarea(s) elimino, ej. "borra la tarea de enviar reportes".');
+        return;
+      }
+
+      const resueltoEliminar = resolverUsuarioYDestino(cmd, senderPhone);
+      if (resueltoEliminar.error) {
+        sendWhatsAppMessage(senderPhone, resueltoEliminar.error);
+        return;
+      }
+      const destinoResueltoEliminar = resolverDestinoCalendario(resueltoEliminar.destinoParaResolver, resueltoEliminar.usuario);
+      const taskListIdEliminar = getTaskListIdPorNombre(destinoResueltoEliminar);
+      const resultadosEliminar = titulosEliminar.map(titulo => eliminarTareaPorTitulo(taskListIdEliminar, titulo));
+
+      const eliminadas = resultadosEliminar.filter(r => !r.error);
+      const fallidasEliminar = resultadosEliminar.filter(r => r.error);
+      const partesEliminar = [];
+      if (eliminadas.length) partesEliminar.push(eliminadas.map(r => `🗑️ "${r.titulo}" eliminada.`).join('\n'));
+      if (fallidasEliminar.length) partesEliminar.push(fallidasEliminar.map(r => `⚠️ ${r.error}`).join('\n\n'));
+      sendWhatsAppMessage(senderPhone, partesEliminar.join('\n\n'));
+      return;
+    }
+
+    // NUEVO: agregar una nota a una o varias tareas SIN marcarlas como completadas
+    // (a diferencia de COMPLETAR_TAREA) — la tarea sigue abierta.
+    if (cmd.intent === 'EDITAR_NOTA_TAREA') {
+      const titulosNota = Array.isArray(cmd.titulos_tarea) ? cmd.titulos_tarea.filter(Boolean) : [];
+      if (titulosNota.length === 0 || !cmd.nota_tarea) {
+        sendWhatsAppMessage(senderPhone, 'Dime qué tarea y qué nota agrego, ej. "anota en la tarea de enviar reportes que falta el anexo".');
+        return;
+      }
+
+      const resueltoNota = resolverUsuarioYDestino(cmd, senderPhone);
+      if (resueltoNota.error) {
+        sendWhatsAppMessage(senderPhone, resueltoNota.error);
+        return;
+      }
+      const destinoResueltoNota = resolverDestinoCalendario(resueltoNota.destinoParaResolver, resueltoNota.usuario);
+      const taskListIdNota = getTaskListIdPorNombre(destinoResueltoNota);
+      const resultadosNota = titulosNota.map(titulo => editarNotaTareaPorTitulo(taskListIdNota, titulo, cmd.nota_tarea));
+
+      const anotadas = resultadosNota.filter(r => !r.error);
+      const fallidasNota = resultadosNota.filter(r => r.error);
+      const partesNota = [];
+      if (anotadas.length) partesNota.push(anotadas.map(r => `📝 Agregué la nota a "${r.titulo}" (sigue abierta).`).join('\n'));
+      if (fallidasNota.length) partesNota.push(fallidasNota.map(r => `⚠️ ${r.error}`).join('\n\n'));
+      sendWhatsAppMessage(senderPhone, partesNota.join('\n\n'));
       return;
     }
 
@@ -305,29 +361,17 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
       const desdeAgenda = cmd.rango_desde || hoyAgenda;
       const hastaAgenda = cmd.rango_hasta || desdeAgenda;
 
-      let usuarioAgenda = getUsuario(senderPhone);
-      let prefijoAgenda = 'Tu agenda';
-      let personaMencionada = cmd.persona_agenda;
-      let destinoParaResolver = cmd.destino_agenda;
-      // FIX: red de seguridad — a veces el clasificador pone el nombre de la persona
-      // en "destino_agenda" en vez de "persona_agenda" (son fáciles de confundir). Si
-      // "destino_agenda" coincide con un nombre registrado, se trata como persona, no
-      // como alias de calendario.
-      if (!personaMencionada && destinoParaResolver && getUsuarioPorNombre(destinoParaResolver)) {
-        personaMencionada = destinoParaResolver;
-        destinoParaResolver = null;
+      const resueltoAgenda = resolverUsuarioYDestino(cmd, senderPhone);
+      if (resueltoAgenda.error) {
+        sendWhatsAppMessage(senderPhone, resueltoAgenda.error);
+        return;
       }
-      if (personaMencionada) {
-        const otroUsuario = getUsuarioPorNombre(personaMencionada);
-        if (!otroUsuario) {
-          sendWhatsAppMessage(senderPhone, `No reconozco a "${personaMencionada}". Solo puedo ver la agenda de: ${getNombresRegistrados().join(', ')}.`);
-          return;
-        }
-        usuarioAgenda = otroUsuario;
-        prefijoAgenda = `La agenda de ${otroUsuario.nombre}`;
-      }
+      const usuarioAgenda = resueltoAgenda.usuario;
+      const prefijoAgenda = cmd.persona_agenda || (cmd.destino_agenda && getUsuarioPorNombre(cmd.destino_agenda))
+        ? `La agenda de ${usuarioAgenda.nombre}`
+        : 'Tu agenda';
 
-      const destinoResuelto = resolverDestinoCalendario(destinoParaResolver, usuarioAgenda);
+      const destinoResuelto = resolverDestinoCalendario(resueltoAgenda.destinoParaResolver, usuarioAgenda);
       const calAgenda = getCalendarPorNombre(destinoResuelto);
       const eventosAgenda = getEventosEnRango(calAgenda, desdeAgenda, hastaAgenda);
 
