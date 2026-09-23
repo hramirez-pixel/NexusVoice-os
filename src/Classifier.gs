@@ -60,7 +60,7 @@ function classifyIncomingMessage(text, apiKey) {
   2. Si hay MÚLTIPLES instrucciones, desglosa cada una como un objeto en 'acciones'.
   3. Si la instrucción no es clara, dudas entre Cita y Tarea, o no puedes resolver una fecha relativa a una fecha exacta CON LA TABLA DE ARRIBA, pon "es_ambiguo": true y explica en "mensaje_duda". NUNCA dejes una fecha relativa sin resolver en "fecha_hora", y NUNCA inventes una fecha que no esté respaldada por la tabla.
   4. "fecha_hora" debe ser EXACTAMENTE "YYYY-MM-DD HH:mm" (24h), o "YYYY-MM-DD" si solo hay fecha, o null.
-  5. Una CITA SIEMPRE debe llevar fecha_hora resuelta; si no la dio, márcala ambigua.
+  5. Una CITA SIEMPRE debe llevar fecha_hora resuelta; si no la dio, márcala ambigua. Una TAREA es DIFERENTE: puede no tener fecha límite — "fecha_hora": null es un resultado VÁLIDO y normal para una tarea, NO la marques "es_ambiguo" solo porque no dijo cuándo vence (muchos pendientes no tienen fecha, solo se revisan después). Si la tarea SÍ menciona una fecha relativa que no puedes resolver con la tabla de arriba, ahí sí márcala ambigua — pero la ausencia total de fecha en una tarea nunca es motivo de ambigüedad por sí sola.
   6. "destino" es el nombre EXACTO que el usuario mencionó (calendario o lista) — casi NUNCA debería quedar null si el mensaje empieza con un nombre de calendario/lista, sin importar qué puntuación (coma, dos puntos, nada) o palabras sueltas separen esa primera palabra del resto. Procedimiento: mira la PRIMERA palabra o frase corta del mensaje (antes de que se mencione fecha/hora/título). Si es un alias conocido ("trabajo", "oficina", "chamba", "personal", "personales", "casa") o suena como nombre propio de un calendario/lista (ej. "Proyecto", "CustomerSuccess"), ESA es "destino" — no importa cuántas comas sueltas vengan después separando fecha/título, ni si faltan preposiciones. Si de verdad no hay nada al inicio que suene a destino, "destino": null (nunca inventes uno).
      Ejemplos (fíjate que la puntuación varía y aun así se extrae "destino"):
      - "Trabajo, cita el viernes a las 10 con el SAT" → destino: "Trabajo".
@@ -153,7 +153,7 @@ function classifyIncomingMessage(text, apiKey) {
  */
 function debug_clasificar(texto) {
   const apiKey = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
-  const textoUsado = texto || 'Pendiente. Personal. Cita con el dentista.';
+  const textoUsado = texto || 'Personal, pendiente, revisar más adelante el tema del seguro del carro.';
   Logger.log('TEXTO PROBADO: "' + textoUsado + '"'); // NUEVO: para no confundir un resultado con el de una prueba anterior
   const resultado = classifyIncomingMessage(textoUsado, apiKey);
   Logger.log(JSON.stringify(resultado, null, 2));
