@@ -7,6 +7,21 @@ de Héctor/Angy hoy.
 
 ## ✅ Hecho
 
+- [x] **Fix: `destino` (Trabajo/Personal) no se extraía sin ":" en el mensaje.**
+      "Trabajo, cita el viernes a las 10 con el SAT" clasificaba
+      `destino: null` (y la cita caía al calendario por defecto) porque el
+      prompt solo daba el ejemplo con ":" separando fecha de título. Se
+      reforzó la regla 6 de modo NOTA con el patrón general y un ejemplo
+      idéntico al caso real.
+- [x] **Fix: webhook de WhatsApp procesaba el mismo mensaje dos veces.**
+      Meta reenvía el webhook si el servidor no responde rápido — y
+      transcribir + clasificar + escribir en Sheets sí tarda varios
+      segundos. Sin deduplicar, un mismo audio se procesaba (y confirmaba)
+      dos veces, con resultados distintos entre una y otra porque el modelo
+      no es 100% determinista — así se vivió como "dijo que sí, luego dijo
+      que no se procesó bien". `doPost` ahora descarta mensajes repetidos
+      usando `CacheService` con el `message.id` de WhatsApp (`yaSeProceso()`
+      en `Webhook.gs`, ventana de 6h).
 - [x] **CRUD completo de citas y tareas por WhatsApp** (antes solo existía
       "alta"): `CANCELAR_CITA` y `EDITAR_COMENTARIO_CITA` (Sesiones.gs:
       `cancelarCitaEnCalendar`, `editarComentarioEvento`) para citas; y

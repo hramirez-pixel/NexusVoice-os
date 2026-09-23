@@ -149,7 +149,7 @@ function classifyIncomingMessage(text, apiKey) {
  */
 function debug_clasificar(texto) {
   const apiKey = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
-  const resultado = classifyIncomingMessage(texto || 'Trabajo, cita el viernes a las 10 de la mañana con el SAT.', apiKey);
+  const resultado = classifyIncomingMessage(texto || 'trabajo, cita, jueves a las cuatro de la tarde, Juan Pérez', apiKey);
   Logger.log(JSON.stringify(resultado, null, 2));
   return resultado;
 }

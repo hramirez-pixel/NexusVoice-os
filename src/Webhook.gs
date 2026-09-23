@@ -9,6 +9,22 @@ function doGet(e) {
   return ContentService.createTextOutput("NexusVoice OS Webhook Activo").setMimeType(ContentService.MimeType.TEXT);
 }
 
+/**
+ * NUEVO — evita procesar el mismo mensaje dos veces. WhatsApp reenvía el
+ * webhook si el servidor no responde rápido, y transcribir + clasificar +
+ * escribir en Sheets sí puede tardar varios segundos — sin esto, un mismo
+ * audio/texto se procesaba (y confirmaba) dos veces, con resultados
+ * distintos entre una y otra porque el modelo no es 100% determinista.
+ * CacheService (no PropertiesService) porque es justo para datos efímeros
+ * con expiración automática — no hace falta limpiarlo a mano.
+ */
+function yaSeProceso(messageId) {
+  const cache = CacheService.getScriptCache();
+  if (cache.get('MSG_' + messageId)) return true;
+  cache.put('MSG_' + messageId, '1', 21600); // 6h — cubre cualquier reintento realista de Meta
+  return false;
+}
+
 /** Incoming Webhook (POST) - Captura dinámica de quién envía el audio */
 function doPost(e) {
   try {
@@ -16,6 +32,10 @@ function doPost(e) {
     if (contents.entry && contents.entry[0].changes && contents.entry[0].changes[0].value.messages) {
       const message = contents.entry[0].changes[0].value.messages[0];
       const senderPhone = message.from; // Número de tu celular personal que envía el mensaje
+
+      if (message.id && yaSeProceso(message.id)) {
+        return ContentService.createTextOutput(JSON.stringify({ "status": "duplicado_ignorado" })).setMimeType(ContentService.MimeType.JSON);
+      }
 
       if (message.type === 'audio') {
         processIncomingAudio(message.audio.id, senderPhone);
