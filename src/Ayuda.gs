@@ -6,6 +6,7 @@ function getMensajeAyuda() {
     + `  _Ejemplo: "Pendientes, Personales: comprar pan para el viernes"_\n\n`
     + `Otros comandos útiles (por texto, no audio):\n`
     + `• *"ID-00X agrega a correo@x.com"* → invita a alguien a esa cita\n`
+    + `• *"ya hice lo de enviar reportes"* / *"márcalo como hecho, nota: se mandó por correo"* → marca esa tarea como completada (con nota opcional)\n`
     + `• *"qué tengo pendiente esta semana"* / *"qué tengo hoy"* / *"cómo se ve mi agenda del viernes"* → ve tu calendario y tareas reales de Google (citas + pendientes, incluyendo lo vencido)\n`
     + `• *"qué tiene Angy hoy"* / *"pendientes de Angy"* → lo mismo, pero de otra persona registrada (agenda compartida)\n`
     + `• *"notas pendientes de configurar"* → ve las notas de voz que no se pudieron clasificar solas\n`

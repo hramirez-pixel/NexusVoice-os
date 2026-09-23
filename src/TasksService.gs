@@ -38,6 +38,43 @@ function getTaskListIdByName(listName) {
   return '@default';
 }
 
+/** NUEVO — busca una tarea NO completada por título aproximado (substring en
+ *  cualquier dirección, sin distinguir mayúsculas/minúsculas — las tareas no
+ *  tienen ID corto como las Sesiones, así que esta es la única forma de
+ *  encontrarlas) y la marca como completada, dejando una nota si se dio una.
+ *  Devuelve { titulo } si se completó, o { error } si no se encontró / hubo
+ *  ambigüedad / falló la llamada a la API. */
+function completarTareaPorTitulo(taskListId, tituloBuscado, nota) {
+  try {
+    const result = Tasks.Tasks.list(taskListId, { showCompleted: false, showHidden: false });
+    const items = result.getItems() || [];
+    const target = tituloBuscado.toString().toLowerCase().trim();
+    const matches = items.filter(t => {
+      const titulo = t.getTitle().toLowerCase();
+      return titulo.includes(target) || target.includes(titulo);
+    });
+
+    if (matches.length === 0) {
+      return { error: `No encontré ninguna tarea pendiente que coincida con "${tituloBuscado}".` };
+    }
+    if (matches.length > 1) {
+      const lista = matches.map(t => `• ${t.getTitle()}`).join('\n');
+      return { error: `Encontré varias tareas que coinciden con "${tituloBuscado}", dime el título más exacto:\n\n${lista}` };
+    }
+
+    const tarea = matches[0];
+    const notaExistente = tarea.getNotes();
+    const notaFinal = nota ? (notaExistente ? notaExistente + '\n' + nota : nota) : notaExistente;
+    const patchResource = { status: 'completed', completed: new Date().toISOString() };
+    if (notaFinal) patchResource.notes = notaFinal;
+    Tasks.Tasks.patch(patchResource, taskListId, tarea.getId());
+    return { titulo: tarea.getTitle() };
+  } catch (e) {
+    Logger.log("Error completando tarea: " + e.toString());
+    return { error: 'Hubo un error marcando la tarea como completada. Intenta de nuevo o revisa Auditoria_Logs.' };
+  }
+}
+
 /** NUEVO — tareas NO completadas con vencimiento dentro de un rango de fechas
  *  (ambas inclusive). Usado por CONSULTAR_AGENDA para unificar citas + tareas,
  *  ej. para que "qué tenía ayer" también traiga pendientes vencidos de ese día. */

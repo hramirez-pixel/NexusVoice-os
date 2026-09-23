@@ -52,7 +52,7 @@ function classifyIncomingMessage(text, apiKey) {
 
   PRIMERO decide el "modo":
   - "NOTA": el mensaje describe uno o más compromisos NUEVOS a crear (una cita con fecha/hora, o una tarea con fecha de vencimiento) — aunque también mencione, en el mismo mensaje, agregar un invitado a esa cita nueva.
-  - "COMANDO": el mensaje NO describe ningún compromiso nuevo que agendar. Solo pide una acción sobre algo que YA EXISTE: agregar un invitado a una cita YA CREADA (por ID o por fecha/referencia, sin dar un compromiso nuevo), consultar citas/tareas ya agendadas, consultar o resolver notas pendientes de configurar, o pedir ayuda.
+  - "COMANDO": el mensaje NO describe ningún compromiso nuevo que agendar. Solo pide una acción sobre algo que YA EXISTE: agregar un invitado a una cita YA CREADA (por ID o por fecha/referencia, sin dar un compromiso nuevo), avisar que una tarea YA CREADA se completó, consultar citas/tareas ya agendadas, consultar o resolver notas pendientes de configurar, o pedir ayuda.
 
   ==== SI modo es "NOTA" ====
   Extrae cada compromiso en "acciones":
@@ -67,6 +67,7 @@ function classifyIncomingMessage(text, apiKey) {
   ==== SI modo es "COMANDO" ====
   Clasifica "intent":
   - AGREGAR_INVITADO: agregar/añadir/invitar a alguien (correo) a una cita YA CREADA, por ID de sesión ("ID-001") o por fecha/título aproximado. Cualquier verbo con ese sentido cuenta ("agrega", "agregar", "añade", "invita", "pon a", etc.) — no exijas una palabra exacta.
+  - COMPLETAR_TAREA: avisa que una TAREA/pendiente YA CREADA se terminó/hizo/completó, por su título aproximado (no por ID — las tareas no tienen ID corto). Reconócelo por el SIGNIFICADO ("ya hice...", "ya terminé...", "márcalo como hecho/completado/listo...", "termina la tarea de..."), no por frase exacta. Si en el mismo mensaje deja una nota sobre cómo/cuándo se hizo, extráela aparte — NUNCA confundas esto con crear una tarea nueva (modo NOTA).
   - CONSULTAR_PENDIENTES: usa la palabra "pendientes" (ej. "mis pendientes", "pendientes de Angy", "qué tengo pendiente esta semana").
   - CONSULTAR_AGENDA: pregunta de forma general SIN decir "pendientes" (ej. "qué tengo hoy", "cómo se ve mi agenda mañana", "qué tengo el viernes", "agenda de esta semana").
   Estas dos intenciones muestran EXACTAMENTE lo mismo — el estado REAL de Calendar + Tasks (citas y tareas reales, no solo lo creado por este bot) — solo cambia la palabra que las dispara. Ambas pueden preguntar por la agenda de OTRA persona registrada (ej. "pendientes de Angy", "qué tiene Héctor mañana") — personas registradas: ${nombresRegistrados}.
@@ -81,6 +82,7 @@ function classifyIncomingMessage(text, apiKey) {
   - Resuelve TODA fecha relativa POR NOMBRE DE DÍA (fecha_hora_referencia, rango_desde, rango_hasta, fecha_hora_nueva) usando la MISMA tabla de calendario de arriba — no calcules offsets de días tú mismo. "Esta semana" = desde hoy hasta el domingo más cercano de la tabla. La tabla solo cubre ~1 mes (7 días atrás, 21 adelante) — si el usuario da un MES o fecha EXPLÍCITA fuera de ese rango (ej. "todos los pendientes de septiembre", "del 1 al 15 de octubre", "todo el mes pasado"), la tabla no lo cubre: en ese caso SÍ calcula tú mismo el rango exacto (YYYY-MM-01 a YYYY-MM-último_día) usando la fecha de hoy de arriba como referencia de año — si el mes mencionado ya pasó este año y no se dijo "del año pasado", asume que se refiere al mes más próximo (puede ser este año o el próximo, el que quede más cerca de hoy).
   - Para RESOLVER_NOTA_PENDIENTE, "accion_nota" es "DESCARTAR", "AGENDAR_CITA" o "GENERAR_TAREA"; si agenda/genera, extrae "fecha_hora_nueva" y "destino_nuevo" si los da.
   - Para CONSULTAR_PENDIENTES o CONSULTAR_AGENDA: si el usuario pide explícitamente que se lo mandes/envíes "por correo"/"por email"/"a mi correo" (ej. "mándame las sesiones de hoy por correo"), pon "porCorreo": true. Si solo pregunta normalmente (sin pedir correo), "porCorreo": false. "destino_agenda" es el calendario que pregunta (ej. "trabajo", "personal", o un nombre explícito como "Proyecto"), igual que "destino" en modo NOTA. Si no menciona ninguno, "destino_agenda": null (su calendario por defecto). "persona_agenda" es el nombre de la persona registrada cuya agenda pregunta (ej. "Angy"), SOLO si es un nombre de la lista de personas registradas de arriba — NUNCA lo confundas con "destino_agenda" (un nombre de calendario/lista, no de persona). Si pregunta por su propia agenda, "persona_agenda": null.
+  - Para COMPLETAR_TAREA: "titulo_tarea" es el texto aproximado de la tarea que se completó (obligatorio — sin esto no se puede encontrar cuál tarea es). "nota_tarea" es cualquier nota/comentario que el usuario deje sobre cómo, cuándo o con qué resultado se hizo (ej. "ya hice lo de enviar reportes, se mandó por correo a las 3" → titulo_tarea: "enviar reportes", nota_tarea: "se mandó por correo a las 3"), o null si no dejó ninguna. También acepta "destino_agenda"/"persona_agenda" igual que arriba, por si la tarea es de otra persona registrada.
   - No exijas coincidencia literal de palabras para NINGUNA intención — interpreta el significado natural, como lo haría un humano.
 
   Responde UNICAMENTE este JSON (deja en null/[]/false lo que no aplique según el modo):
@@ -91,7 +93,7 @@ function classifyIncomingMessage(text, apiKey) {
     "acciones": [
       { "tipo": "CITA | TAREA", "titulo": "texto", "fecha_hora": "YYYY-MM-DD HH:mm o YYYY-MM-DD o null", "destino": "texto o null", "invitados": ["correo@ejemplo.com"] }
     ],
-    "intent": "AGREGAR_INVITADO | CONSULTAR_PENDIENTES | CONSULTAR_AGENDA | CONSULTAR_NOTAS_PENDIENTES | RESOLVER_NOTA_PENDIENTE | AYUDA | OTRO",
+    "intent": "AGREGAR_INVITADO | COMPLETAR_TAREA | CONSULTAR_PENDIENTES | CONSULTAR_AGENDA | CONSULTAR_NOTAS_PENDIENTES | RESOLVER_NOTA_PENDIENTE | AYUDA | OTRO",
     "id_sesion": "ID-XXX o null",
     "email": "correo@ejemplo.com o null",
     "fecha_hora_referencia": "YYYY-MM-DD o null",
@@ -100,6 +102,8 @@ function classifyIncomingMessage(text, apiKey) {
     "rango_hasta": "YYYY-MM-DD o null",
     "destino_agenda": "texto o null",
     "persona_agenda": "nombre o null",
+    "titulo_tarea": "texto o null",
+    "nota_tarea": "texto o null",
     "nota_id": "N-XXX o TODAS o null",
     "accion_nota": "DESCARTAR | AGENDAR_CITA | GENERAR_TAREA o null",
     "fecha_hora_nueva": "YYYY-MM-DD HH:mm o YYYY-MM-DD o null",

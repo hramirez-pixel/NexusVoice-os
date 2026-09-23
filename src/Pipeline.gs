@@ -253,6 +253,45 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
       return;
     }
 
+    // NUEVO: marcar una tarea real de Google Tasks como completada por título
+    // aproximado (no hay ID corto para tareas como sí lo hay para Sesiones/citas),
+    // dejando una nota si el usuario mencionó alguna. Soporta agenda compartida
+    // (destino_agenda/persona_agenda) igual que CONSULTAR_AGENDA.
+    if (cmd.intent === 'COMPLETAR_TAREA') {
+      if (!cmd.titulo_tarea) {
+        sendWhatsAppMessage(senderPhone, 'Dime qué tarea marco como hecha, ej. "ya hice lo de enviar reportes".');
+        return;
+      }
+
+      let usuarioTarea = getUsuario(senderPhone);
+      let personaMencionada = cmd.persona_agenda;
+      let destinoParaResolver = cmd.destino_agenda;
+      if (!personaMencionada && destinoParaResolver && getUsuarioPorNombre(destinoParaResolver)) {
+        personaMencionada = destinoParaResolver;
+        destinoParaResolver = null;
+      }
+      if (personaMencionada) {
+        const otroUsuario = getUsuarioPorNombre(personaMencionada);
+        if (!otroUsuario) {
+          sendWhatsAppMessage(senderPhone, `No reconozco a "${personaMencionada}". Solo puedo marcar tareas de: ${getNombresRegistrados().join(', ')}.`);
+          return;
+        }
+        usuarioTarea = otroUsuario;
+      }
+
+      const destinoResueltoTarea = resolverDestinoCalendario(destinoParaResolver, usuarioTarea);
+      const taskListIdTarea = getTaskListIdPorNombre(destinoResueltoTarea);
+      const resultado = completarTareaPorTitulo(taskListIdTarea, cmd.titulo_tarea, cmd.nota_tarea);
+
+      if (resultado.error) {
+        sendWhatsAppMessage(senderPhone, `⚠️ ${resultado.error}`);
+        return;
+      }
+      const notaTxt = cmd.nota_tarea ? `\n📝 Nota: ${cmd.nota_tarea}` : '';
+      sendWhatsAppMessage(senderPhone, `✅ Marqué "${resultado.titulo}" como completada.${notaTxt}`);
+      return;
+    }
+
     // UNIFICADO: "pendientes" y "agenda" son la MISMA consulta — el estado REAL de
     // Calendar + Tasks (no solo lo que este bot creó; antes CONSULTAR_PENDIENTES solo
     // leía el registro interno en Sesiones, y por eso no veía nada creado directo en

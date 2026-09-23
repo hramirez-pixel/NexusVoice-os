@@ -92,6 +92,15 @@ de Héctor/Angy hoy.
       Angy) reconocido tanto por el código como por el prompt del
       clasificador.
 
+- [x] **Nuevo intent `COMPLETAR_TAREA`.** Permite avisar que una tarea ya
+      creada se terminó ("ya hice lo de enviar reportes", "márcalo como
+      hecho, nota: se mandó por correo") y dejarle una nota. Como las tareas
+      no tienen ID corto (a diferencia de las citas en `Sesiones`), se
+      buscan por título aproximado (`completarTareaPorTitulo()` en
+      `TasksService.gs`) — si hay 0 o varias coincidencias, avisa en vez de
+      adivinar. Soporta agenda compartida igual que `CONSULTAR_AGENDA`
+      (puede completar una tarea de otra persona registrada).
+
 ## Pendiente
 
 ### Entornos dev / prod
