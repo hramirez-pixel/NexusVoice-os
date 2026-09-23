@@ -61,7 +61,11 @@ function classifyIncomingMessage(text, apiKey) {
   3. Si la instrucción no es clara, dudas entre Cita y Tarea, o no puedes resolver una fecha relativa a una fecha exacta CON LA TABLA DE ARRIBA, pon "es_ambiguo": true y explica en "mensaje_duda". NUNCA dejes una fecha relativa sin resolver en "fecha_hora", y NUNCA inventes una fecha que no esté respaldada por la tabla.
   4. "fecha_hora" debe ser EXACTAMENTE "YYYY-MM-DD HH:mm" (24h), o "YYYY-MM-DD" si solo hay fecha, o null.
   5. Una CITA SIEMPRE debe llevar fecha_hora resuelta; si no la dio, márcala ambigua.
-  6. "destino" es el nombre EXACTO que el usuario mencionó (calendario o lista). Si no mencionó ninguno, "destino": null — nunca inventes un nombre genérico. El destino casi siempre va AL PRINCIPIO del mensaje, antes de la palabra "cita"/"pendientes", con o sin coma/dos puntos separándolo del resto (ej. "Trabajo, cita el viernes a las 10 con el SAT" → destino: "Trabajo", SIN importar que no haya ":" antes del título — no necesitas puntuación exacta para reconocerlo, el patrón es "[destino], cita/pendientes [fecha] [preposición: "de"/"con"/":"] [título]"). No confundas el destino con parte del título: en "Trabajo, cita el viernes con el SAT", el título es "cita con el SAT" (o similar) y el destino es "Trabajo", NO al revés.
+  6. "destino" es el nombre EXACTO que el usuario mencionó (calendario o lista) — casi NUNCA debería quedar null si el mensaje empieza con un nombre de calendario/lista, sin importar qué puntuación (coma, dos puntos, nada) o palabras sueltas separen esa primera palabra del resto. Procedimiento: mira la PRIMERA palabra o frase corta del mensaje (antes de que se mencione fecha/hora/título). Si es un alias conocido ("trabajo", "oficina", "chamba", "personal", "personales", "casa") o suena como nombre propio de un calendario/lista (ej. "Proyecto", "CustomerSuccess"), ESA es "destino" — no importa cuántas comas sueltas vengan después separando fecha/título, ni si faltan preposiciones. Si de verdad no hay nada al inicio que suene a destino, "destino": null (nunca inventes uno).
+     Ejemplos (fíjate que la puntuación varía y aun así se extrae "destino"):
+     - "Trabajo, cita el viernes a las 10 con el SAT" → destino: "Trabajo".
+     - "trabajo, cita, jueves a las cuatro de la tarde, Juan Pérez" → destino: "trabajo", titulo: "cita con Juan Pérez" (puras comas sueltas sin preposición — "trabajo" SIGUE siendo destino por ser la primera palabra y un alias conocido, NO lo dejes en null solo porque no hay "con"/":" conectándolo).
+     - "Pendientes, Personales: comprar pan para el viernes" → destino: "Personales".
   7. Si en el mismo mensaje se pide agregar/invitar a alguien (con correo) a la cita que se está creando, ponlo en "invitados" de esa acción (arreglo de strings). Solo aplica a CITA. Si el correo dictado no tiene forma válida (le falta la @, por transcripción de audio), inclúyelo igual tal cual — se valida después.
 
   ==== SI modo es "COMANDO" ====
@@ -149,7 +153,9 @@ function classifyIncomingMessage(text, apiKey) {
  */
 function debug_clasificar(texto) {
   const apiKey = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
-  const resultado = classifyIncomingMessage(texto || 'trabajo, cita, jueves a las cuatro de la tarde, Juan Pérez', apiKey);
+  const textoUsado = texto || 'Pendiente. Personal. Cita con el dentista.';
+  Logger.log('TEXTO PROBADO: "' + textoUsado + '"'); // NUEVO: para no confundir un resultado con el de una prueba anterior
+  const resultado = classifyIncomingMessage(textoUsado, apiKey);
   Logger.log(JSON.stringify(resultado, null, 2));
   return resultado;
 }
