@@ -38,19 +38,26 @@ function getTaskListIdByName(listName) {
   return '@default';
 }
 
+/** Normaliza texto para comparar títulos "a ojo": minúsculas, sin acentos,
+ *  sin espacios — así "test pendiente" (como lo dictó/escribió alguien)
+ *  coincide con la tarea real "testpendiente" (como haya quedado guardada). */
+function normalizarParaComparar(str) {
+  return str.toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '');
+}
+
 /** NUEVO — busca una tarea NO completada por título aproximado (substring en
- *  cualquier dirección, sin distinguir mayúsculas/minúsculas — las tareas no
- *  tienen ID corto como las Sesiones, así que esta es la única forma de
- *  encontrarlas) y la marca como completada, dejando una nota si se dio una.
- *  Devuelve { titulo } si se completó, o { error } si no se encontró / hubo
- *  ambigüedad / falló la llamada a la API. */
+ *  cualquier dirección, ignorando mayúsculas/minúsculas, acentos y espacios —
+ *  las tareas no tienen ID corto como las Sesiones, así que esta es la única
+ *  forma de encontrarlas) y la marca como completada, dejando una nota si se
+ *  dio una. Devuelve { titulo } si se completó, o { error } si no se
+ *  encontró / hubo ambigüedad / falló la llamada a la API. */
 function completarTareaPorTitulo(taskListId, tituloBuscado, nota) {
   try {
     const result = Tasks.Tasks.list(taskListId, { showCompleted: false, showHidden: false });
     const items = result.getItems() || [];
-    const target = tituloBuscado.toString().toLowerCase().trim();
+    const target = normalizarParaComparar(tituloBuscado);
     const matches = items.filter(t => {
-      const titulo = t.getTitle().toLowerCase();
+      const titulo = normalizarParaComparar(t.getTitle());
       return titulo.includes(target) || target.includes(titulo);
     });
 

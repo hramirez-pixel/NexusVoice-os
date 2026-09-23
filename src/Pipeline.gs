@@ -253,13 +253,14 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
       return;
     }
 
-    // NUEVO: marcar una tarea real de Google Tasks como completada por título
-    // aproximado (no hay ID corto para tareas como sí lo hay para Sesiones/citas),
-    // dejando una nota si el usuario mencionó alguna. Soporta agenda compartida
-    // (destino_agenda/persona_agenda) igual que CONSULTAR_AGENDA.
+    // NUEVO: marcar una o varias tareas reales de Google Tasks como completadas
+    // por título aproximado (no hay ID corto para tareas como sí lo hay para
+    // Sesiones/citas), dejando una nota si el usuario mencionó alguna. Soporta
+    // agenda compartida (destino_agenda/persona_agenda) igual que CONSULTAR_AGENDA.
     if (cmd.intent === 'COMPLETAR_TAREA') {
-      if (!cmd.titulo_tarea) {
-        sendWhatsAppMessage(senderPhone, 'Dime qué tarea marco como hecha, ej. "ya hice lo de enviar reportes".');
+      const titulosTarea = Array.isArray(cmd.titulos_tarea) ? cmd.titulos_tarea.filter(Boolean) : [];
+      if (titulosTarea.length === 0) {
+        sendWhatsAppMessage(senderPhone, 'Dime qué tarea(s) marco como hechas, ej. "ya hice lo de enviar reportes".');
         return;
       }
 
@@ -281,14 +282,15 @@ function processTextCommand(text, senderPhone, cmdPrecalculado) {
 
       const destinoResueltoTarea = resolverDestinoCalendario(destinoParaResolver, usuarioTarea);
       const taskListIdTarea = getTaskListIdPorNombre(destinoResueltoTarea);
-      const resultado = completarTareaPorTitulo(taskListIdTarea, cmd.titulo_tarea, cmd.nota_tarea);
+      const resultados = titulosTarea.map(titulo => completarTareaPorTitulo(taskListIdTarea, titulo, cmd.nota_tarea));
 
-      if (resultado.error) {
-        sendWhatsAppMessage(senderPhone, `⚠️ ${resultado.error}`);
-        return;
-      }
-      const notaTxt = cmd.nota_tarea ? `\n📝 Nota: ${cmd.nota_tarea}` : '';
-      sendWhatsAppMessage(senderPhone, `✅ Marqué "${resultado.titulo}" como completada.${notaTxt}`);
+      const exitosas = resultados.filter(r => !r.error);
+      const fallidas = resultados.filter(r => r.error);
+      const partes = [];
+      if (exitosas.length) partes.push(exitosas.map(r => `✅ "${r.titulo}" marcada como completada.`).join('\n'));
+      if (fallidas.length) partes.push(fallidas.map(r => `⚠️ ${r.error}`).join('\n\n'));
+      if (cmd.nota_tarea && exitosas.length) partes.push(`📝 Nota aplicada: ${cmd.nota_tarea}`);
+      sendWhatsAppMessage(senderPhone, partes.join('\n\n'));
       return;
     }
 
