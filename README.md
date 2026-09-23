@@ -124,14 +124,33 @@ prueba de WhatsApp en dev y el real solo en prod.
 
 ## 8. Desplegar como Web App (para que el webhook de WhatsApp funcione)
 
+> **CRÍTICO — `clasp push` NO ACTUALIZA LO QUE WHATSAPP EJECUTA.** `clasp push`
+> solo sube tu código al *editor* de Apps Script (a la versión "HEAD"). Si el
+> webhook de WhatsApp en Meta apunta a un despliegue de Web App con una
+> versión **fija** (lo normal en producción, no "HEAD"), ese despliegue queda
+> **congelado en la versión que tenía** hasta que corras `clasp deploy`
+> explícitamente. Es fácil pasar horas "arreglando" algo con `clasp push` y
+> probando por WhatsApp sin ver ningún cambio, porque el webhook real sigue
+> sirviendo la versión vieja. Para confirmar qué versión sirve el webhook:
+> `npx clasp deployments` — vas a ver algo como:
+> ```
+> - AKfycbx...@HEAD                (no es la de producción normalmente)
+> - AKfycbz...@32 - <descripción>  (esta es la que probablemente usa Meta)
+> ```
+
+Para publicar un cambio de verdad (que WhatsApp lo use), actualiza el
+despliegue existente **por su ID**, nunca corras `clasp deploy` a secas (eso
+crea un despliegue NUEVO, con una URL nueva, que Meta no conoce):
+
 ```bash
-npx clasp deploy --description "v3.15 - <resumen del cambio>"
+npx clasp deployments                          # copia el ID @32 (o el que no sea @HEAD)
+npx clasp deploy -i <ESE-ID> -d "v3.15 - <resumen del cambio>"
 ```
 
-Cada `clasp deploy` crea una nueva versión desplegada. La URL del webhook
-(`/exec`) **no cambia** entre versiones si usas un despliegue existente — solo
-cambia si creas un despliegue nuevo desde cero, así que en Meta Business Suite
-normalmente no tienes que tocar nada al desplegar una actualización.
+Esto crea una nueva versión (ej. 32 → 33) **dentro del mismo despliegue**, así
+que la URL del webhook (`/exec`) no cambia y no hay que tocar nada en Meta
+Business Suite. Solo se crea un despliegue nuevo (URL nueva) si corres
+`clasp deploy` sin `-i`, o si nunca has desplegado antes.
 
 ## Notas conocidas / pendientes
 

@@ -7,6 +7,20 @@ de Héctor/Angy hoy.
 
 ## ✅ Hecho
 
+- [x] **CRÍTICO — `clasp push` no publicaba al webhook real de WhatsApp.**
+      Todos los fixes de una sesión completa (agenda unificada, agenda
+      compartida, `COMPLETAR_TAREA`, fechas pasadas/mes explícito, alias de
+      Angy) se subieron con `clasp push` y no se veían reflejados al probar
+      por WhatsApp — porque `clasp push` solo actualiza el editor (HEAD), y
+      el despliegue de Web App que Meta realmente llama está fijado a una
+      versión específica (`AKfycbz...@32` en este caso). Se detectó
+      comparando `debug_clasificar()` (corre desde el editor, veía el fix
+      ya bien) contra el comportamiento real por WhatsApp (seguía viendo el
+      código viejo). Se corrigió con `clasp deploy -i <deployment-id>` (→
+      versión 33, misma URL). Documentado en README sección 8 y en
+      `claude.md` como paso obligatorio de aquí en adelante — **cada cambio
+      que deba quedar visible por WhatsApp necesita `clasp push` Y `clasp
+      deploy -i <id>`, no solo lo primero.**
 - [x] **Versionar con git + clasp.** `clasp` instalado, proyecto conectado,
       `.claspignore` configurado. (commit "Split inicial", 2026-09-22)
 - [x] **Romper el monolito en módulos por responsabilidad.** Un solo
