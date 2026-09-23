@@ -133,6 +133,22 @@ function classifyIncomingMessage(text, apiKey) {
 }
 
 /**
+ * NUEVO — herramienta de diagnóstico manual: corre el clasificador contra un
+ * texto de prueba y muestra el JSON completo que devolvió, sin pasar por
+ * WhatsApp. Correr manualmente desde el editor (seleccionar esta función en
+ * el menú de arriba → Ejecutar) y revisar el resultado en Ver → Registros
+ * (o "Ejecuciones" en el panel izquierdo). Útil cuando un mensaje no se
+ * clasifica como se espera y hace falta ver el "intent"/campos reales
+ * devueltos por el modelo, en vez de adivinar por el prompt.
+ */
+function debug_clasificar(texto) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+  const resultado = classifyIncomingMessage(texto || 'Marca como completada la tarea pendiente de enviar reportes.', apiKey);
+  Logger.log(JSON.stringify(resultado, null, 2));
+  return resultado;
+}
+
+/**
  * Búsqueda en Catalogo_Listas.
  * FIX: la versión anterior usaba doble ".includes()" cruzado, lo que causaba:
  *   (a) que una fila vacía (list_name === "") hiciera match SIEMPRE, porque
